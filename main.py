@@ -18,7 +18,7 @@ def cli():
 @click.option('-d', '--dataset', nargs=2, type=(Choice(['kropt', 'satimage', 'credita']), Choice([str(i) for i in range(10)])), 
               default=('satimage', 0), help='[kropt|satimage|credita] [0,9]\n Dataset name, fold')
 @click.option('-k', type=int, default=3, help='Value k for the nearest neighours to consider')
-@click.option('-s', '--similarity', type=Choice(['minkowski1', 'minkowski2', 'XXX']), default='minkowski2', 
+@click.option('-s', '--similarity', type=Choice(['1-norm', '2-norm', 'XXX']), default='2-norm', 
               help='Distance / similarity function')
 @click.option('-p', '--policy', type=Choice(['majority', 'inverse', 'sheppard']), default='majority',
               help='Policy for deciding the solution of a query')
