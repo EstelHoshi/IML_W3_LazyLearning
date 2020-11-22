@@ -36,7 +36,7 @@ def kNN(dataset, k, similarity, policy, weighting):
 
 
 def kNN_kropt(i, k, similarity, policy, weighting):
-    X, y = datasetsCBR.load_kropt(i)
+    X_train, X_test, y_train, y_test = datasetsCBR.load_kropt(i)
 
 
 def kNN_satimage(i, k, similarity, policy, weighting):
@@ -46,7 +46,9 @@ def kNN_satimage(i, k, similarity, policy, weighting):
 
 
 def kNN_credita(i, k, similarity, policy, weighting):
-    X, y = datasetsCBR.load_credita(i)
+    X_train, X_test, y_train, y_test = datasetsCBR.load_credita(i)
+    print(X_train)
+    print(y_train)
 
 
 if __name__ == "__main__":
