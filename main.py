@@ -1,10 +1,15 @@
 import click
 from click import Choice
 import numpy as np
+from sklearn import metrics
+from sklearn.neighbors import KNeighborsClassifier
 
 import datasetsCBR
 from classification import kNNAlgorithm
 from reduction import reductionKNNAlgorithm
+
+
+K_FOLDS = 10
 
 
 @click.group()
@@ -46,9 +51,15 @@ def kNN_satimage(i, k, similarity, policy, weighting):
 
 
 def kNN_credita(i, k, similarity, policy, weighting):
-    X_train, X_test, y_train, y_test = datasetsCBR.load_credita(i)
-    print(X_train)
-    print(y_train)
+    splits = [datasetsCBR.load_credita(j) for j in range(K_FOLDS)]
+
+    sum_accuracy = 0
+    for X_train, X_test, y_train, y_test in splits:
+        y_pred = kNNAlgorithm(X_test, X_train, y_train, k, distance=similarity, policy=policy)
+        # y_pred2 = KNeighborsClassifier(n_neighbors=k, weights='distance').fit(X_train, y_train).predict(X_test)
+        sum_accuracy += metrics.accuracy_score(y_test, y_pred)
+
+    print('mean accuracy:', sum_accuracy / K_FOLDS)
 
 
 if __name__ == "__main__":
