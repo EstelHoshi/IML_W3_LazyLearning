@@ -3,7 +3,7 @@ from click import Choice
 import numpy as np
 
 import datasetsCBR
-from classification import kNNAlgorithm
+from classification import kNNAlgorithm, kNNAlgorithm_Estel
 from reduction import reductionKNNAlgorithm
 
 
@@ -41,8 +41,32 @@ def kNN_kropt(i, k, similarity, policy, weighting):
 
 def kNN_satimage(i, k, similarity, policy, weighting):
     X_train, y_train, X_test, y_test = datasetsCBR.load_satimage(i)
-    print(X_train)
-    print(y_train)
+    kNNy_test = kNNAlgorithm_Estel(X_train,y_train,X_test,k, similarity, policy, weighting)
+    y_test = np.array(y_test).astype(int)
+    acc = np.nansum((y_test-kNNy_test)/(y_test.astype(int)-kNNy_test))
+    acc = 100-100*acc/len(y_test)
+    print(acc)
+
+    # print(np.shape(X_train))
+    # print(np.shape(y_train))
+    # print(np.shape(X_test))
+
+    # B = np.ones([3,3,2])
+    # C = np.ones([2,3])
+    # C = C.reshape((1,3,2))
+    # print("AA")
+    # print(np.shape(C))
+    # #C = 2*np.ones([1,3,2])
+    # C[0,0,0] = 1
+    # D = B*C
+    # print(B)
+    # print(C)
+    # print(np.shape(B))
+    # print(np.shape(C))
+    # print(D)
+    # print(np.shape(D))
+    # print(D[:,:,0])
+
 
 
 def kNN_credita(i, k, similarity, policy, weighting):
