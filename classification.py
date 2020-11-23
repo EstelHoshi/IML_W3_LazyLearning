@@ -73,7 +73,7 @@ def kNNAlgorithm_Estel(X_train,y_train,X_test,k, similarity, policy, weighting):
 
         print(d_k[:,1])
 
-    if True:
+    if policy == 'sheppard':
         print(np.exp(d_k))
         d_k_exp = np.exp(d_k)
         print(d_k_exp)

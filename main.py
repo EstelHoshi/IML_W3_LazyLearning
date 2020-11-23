@@ -47,27 +47,6 @@ def kNN_satimage(i, k, similarity, policy, weighting):
     acc = 100-100*acc/len(y_test)
     print(acc)
 
-    # print(np.shape(X_train))
-    # print(np.shape(y_train))
-    # print(np.shape(X_test))
-
-    # B = np.ones([3,3,2])
-    # C = np.ones([2,3])
-    # C = C.reshape((1,3,2))
-    # print("AA")
-    # print(np.shape(C))
-    # #C = 2*np.ones([1,3,2])
-    # C[0,0,0] = 1
-    # D = B*C
-    # print(B)
-    # print(C)
-    # print(np.shape(B))
-    # print(np.shape(C))
-    # print(D)
-    # print(np.shape(D))
-    # print(D[:,:,0])
-
-
 
 def kNN_credita(i, k, similarity, policy, weighting):
     X_train, X_test, y_train, y_test = datasetsCBR.load_credita(i)
