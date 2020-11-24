@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+from multiprocessing import cpu_count
+from multiprocessing.dummy import Pool as ThreadPool
 
 
 def _sanitize(X):
@@ -14,7 +16,7 @@ def kNNAlgorithm(q, X, y, k, distance='2-norm', policy='majority'):
     dist_func = {
         '1-norm': _dist_1norm,
         '2-norm': _dist_2norm,
-        'XXX': None
+        'chebyshev': _dist_chebyshev
     }[distance]
 
     vote_func = {
@@ -23,17 +25,19 @@ def kNNAlgorithm(q, X, y, k, distance='2-norm', policy='majority'):
         'sheppard': _vote_sheppard
     }[policy]
     
-    y_pred = np.empty(q.shape[0])
-    for i, qi in enumerate(q):
+    def single_knn(qi):
         dists = dist_func(X, qi)
         knn_indices = np.argsort(dists)[:k]
 
         knn_dists = dists[knn_indices]
         X_knn = X[knn_indices]
         y_knn = y[knn_indices]
-        y_pred[i] = vote_func(qi, X_knn, y_knn, knn_dists)
+        return vote_func(qi, X_knn, y_knn, knn_dists)
+        
+    with ThreadPool(processes=cpu_count()) as pool:
+        y_pred = pool.map(single_knn, q)
 
-    return y_pred
+    return np.array(y_pred)
 
 
 def _dist_1norm(a, b):
@@ -42,6 +46,10 @@ def _dist_1norm(a, b):
 
 def _dist_2norm(a, b):
     return np.linalg.norm(b - a, ord=2, axis=1)
+
+
+def _dist_chebyshev(a, b):
+    return np.max(np.abs(b - a), axis=1)
 
 
 def _vote_majority(q, X, y, *args):
