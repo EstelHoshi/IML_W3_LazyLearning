@@ -9,36 +9,20 @@ def kNNAlgorithm_Estel(X_train,y_train,X_test,k, similarity, policy, weighting):
     X_train = X_train.to_numpy()
     X_test = X_test.to_numpy()
     y_train = y_train.to_numpy()
-    p = 2 #similarity
-
-    # print(np.shape(X_test))
-    # print(X_test[0,:])
-
-    # Mones = np.ones([np.shape(X_train)[0],np.shape(X_train)[1],len(X_test)])
-    # for a in range(len(X_test)):
-    #     Mones[:,:,a] = Mones[:,:,a]*X_test[a,:]
-    #     print(a)
-
-
-    # X_test_2 = X_test.reshape((1,np.shape(X_test)[1],np.shape(X_test)[0]))
-    # print(X_test_2[0,:,0])
-    # print(np.shape(Mones))
-    # print(np.shape(X_test_2))
-    # X_test_3 = Mones*X_test_2
-    # print(X_test_3[0, 0, :])
-
 
     d = np.zeros([len(X_train), len(X_test)])
-    for i in range(len(X_test)):
-        d[:, i] = np.sum(np.power((X_train - X_test[i, :]),p), axis=1)
-        print(i)
+    if similarity == 'minkowski1':
+        for i in range(len(X_test)):
+            d[:, i] = np.sum(np.abs(X_train - X_test[i, :]), axis=1)
+    elif similarity == 'minkowski2':
+        for i in range(len(X_test)):
+            #d[:, i] = np.sum(np.power((X_train - X_test[i, :]),p), axis=1)
+            d[:, i] = np.sum(np.square(X_train - X_test[i, :]), axis=1)
+    else:
+        print("not done yet")
 
-    #d2 = np.zeros([len(X_train), np.shape(X_test)[1],len(X_test)])
-    #d2 = np.sum(np.power((Mones - X_train),p), axis=1)
-    # print(Mones[:,:,0]-X_train[0,:])
-    # print(np.shape(Mones[:,:,0]))
-    # print(np.shape(X_train[0,:]))
-    # print("AAA")
+
+
 
     id_k = np.zeros([k, len(X_test)]).astype(int)
     y_k = np.copy(id_k)
