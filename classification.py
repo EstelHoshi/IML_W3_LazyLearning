@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy import stats
+from ReliefF import ReliefF
 
 def kNNAlgorithm():
     pass
@@ -10,34 +11,47 @@ def kNNAlgorithm_Estel(X_train,y_train,X_test,k, similarity, policy, weighting):
     X_test = X_test.to_numpy()
     y_train = y_train.to_numpy()
 
-    d = np.zeros([len(X_train), len(X_test)])
-    if similarity == 'minkowski1':
+    #y_train = y_train.astype(int)
+    #y_train = y_train.reshape(len(y_train))
+    print(np.shape(y_train))
+    print(np.shape(X_train))
+    print(np.shape(X_test))
+
+    #1.-FEATURE PREPROCESSING
+    if weighting == 'ReliefF':
+        y_train2 = y_train.reshape(len(y_train))
+        fs = ReliefF(n_neighbors=k, n_features_to_keep=np.shape(X_test)[1])
+        x_train_fs = fs.fit_transform(X_train, y_train2)
+        A = np.sum(x_train_fs,axis=0)
+        print(np.max(X_train - x_train_fs))
+
+    #2.-SIMILARITY METRIC
+    # Compute distnace between each test data to each training data
+    d = np.zeros([len(X_train), len(X_test)]) #for each train instance we store the distance to each test intance
+    if similarity == 'minkowski1':  #Manhattan distance
         for i in range(len(X_test)):
             d[:, i] = np.sum(np.abs(X_train - X_test[i, :]), axis=1)
-    elif similarity == 'minkowski2':
+    elif similarity == 'minkowski2': #Euclidian distance
         for i in range(len(X_test)):
-            #d[:, i] = np.sum(np.power((X_train - X_test[i, :]),p), axis=1)
             d[:, i] = np.sum(np.square(X_train - X_test[i, :]), axis=1)
     else:
         print("not done yet")
 
 
-
-
-    id_k = np.zeros([k, len(X_test)]).astype(int)
-    y_k = np.copy(id_k)
-    d_df = pd.DataFrame(d)
-    d_k = np.zeros([k, len(X_test)])
-    for i in range(len(X_test)):
-        d_k[:,i] = d_df[i].nsmallest(k).values
-        id_k[:,i] = d_df[i].nsmallest(k).index
-        y_k[:,i] = y_train[id_k[:,i]][:, 0]
+    id_k = np.zeros([k, len(X_test)]).astype(int) #index (in the training dataset) of each NN intance
+    y_k = np.copy(id_k)                           #label of each the NN instance
+    d_df = pd.DataFrame(d)                        #matrix of distance into a data frame
+    d_k = np.zeros([k, len(X_test)])              #distance from each NN to each X test (id_k rows stored in d_df)
+    for i in range(len(X_test)):                  #searching for each column in d (distances from a given test to all train)
+        d_k[:,i] = d_df[i].nsmallest(k).values    #distance of the NN to each test value
+        id_k[:,i] = d_df[i].nsmallest(k).index    #position of the NN
+        y_k[:,i] = y_train[id_k[:,i]][:, 0]       #label of the NN
 
     print(id_k)
     print(y_k)
     print(d_k)
 
-
+    #3.-TEST LABEL
     y_test = np.zeros([1, len(X_test)])
     if policy == 'majority':
         y_test = stats.mode(y_k)[0]
@@ -74,4 +88,10 @@ def kNNAlgorithm_Estel(X_train,y_train,X_test,k, similarity, policy, weighting):
 
         print(d_k[:,1])
 
-    return np.transpose(y_test)
+    y_test = y_test.reshape(np.shape(y_test)[1],1)
+
+    return y_test
+
+def reductionKNNAlgorithm(i):
+
+    return i

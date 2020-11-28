@@ -4,7 +4,7 @@ import numpy as np
 
 import datasetsCBR
 from classification import kNNAlgorithm, kNNAlgorithm_Estel
-from reduction import reductionKNNAlgorithm
+from reduction import reductionKNNAlgorithm, reductionKNNAlgorithm_Estel
 
 
 @click.group()
@@ -22,7 +22,7 @@ def cli():
               help='Distance / similarity function')
 @click.option('-p', '--policy', type=Choice(['majority', 'inverse', 'sheppard']), default='majority',
               help='Policy for deciding the solution of a query')
-@click.option('-w', '--weighting', type=Choice(['equal', 'XXX']), default='equal',
+@click.option('-w', '--weighting', type=Choice(['equal', 'ReliefF']), default='equal',
               help='Method to weight features')
 def kNN(dataset, k, similarity, policy, weighting):
     if dataset[0] == 'kropt':
@@ -54,5 +54,39 @@ def kNN_credita(i, k, similarity, policy, weighting):
     print(y_train)
 
 
+@cli.command('reductionkNN')
+@click.option('-d', '--dataset', nargs=2, type=(Choice(['kropt', 'satimage', 'credita']), Choice([str(i) for i in range(10)])),
+              default=('satimage', 0), help='[kropt|satimage|credita] [0,9]\n Dataset name, fold')
+@click.option('-k', type=int, default=3, help='Value k for the nearest neighours to consider')
+@click.option('-s', '--similarity', type=Choice(['minkowski1', 'minkowski2', 'XXX']), default='minkowski2',
+              help='Distance / similarity function')
+@click.option('-p', '--policy', type=Choice(['majority', 'inverse', 'sheppard']), default='majority',
+              help='Policy for deciding the solution of a query')
+@click.option('-w', '--weighting', type=Choice(['equal', 'ReliefF']), default='equal',
+              help='Method to weight features')
+
+def reductionkNN(dataset, k, similarity, policy, weighting):
+    if dataset[0] == 'kropt':
+        reductionkNN_kropt(dataset[1], k, similarity, policy, weighting)
+
+    elif dataset[0] == 'satimage':
+        reductionkNN_satimage(dataset[1], k, similarity, policy, weighting)
+
+    elif dataset[0] == 'credita':
+        reductionkNN_credita(dataset[1], k, similarity, policy, weighting)
+
+def reductionkNN_kropt(i, k, similarity, policy, weighting):
+    pass
+def reductionkNN_satimage(i, k, similarity, policy, weighting):
+    X_train, y_train, X_test, y_test = datasetsCBR.load_satimage(i)
+    kNNy_test = reductionKNNAlgorithm_Estel(X_train,y_train,X_test,k, similarity, policy, weighting)
+    #y_test = np.array(y_test).astype(int)
+    #print(np.shape(y_test))
+    #print(y_test)
+    #acc = np.nansum((y_test-kNNy_test)/(y_test-kNNy_test))
+    #acc = 100-100*acc/len(y_test)
+    #print(acc)
+def reductionkNN_credita(i, k, similarity, policy, weighting):
+    pass
 if __name__ == "__main__":
     cli()
