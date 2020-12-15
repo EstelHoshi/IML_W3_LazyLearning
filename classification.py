@@ -5,13 +5,17 @@ from multiprocessing.dummy import Pool as ThreadPool
 
 
 def _sanitize(X):
-    return X.values if isinstance(X, pd.DataFrame) else X
+    X = X.values if isinstance(X, pd.DataFrame) else X
+    return X
 
 
-def kNNAlgorithm(q, X, y, k, distance='2-norm', policy='majority'):
+def kNNAlgorithm(q, X, y, k, distance='2-norm', policy='majority', n_proc=1):
     X = _sanitize(X)
     y = _sanitize(y)
     q = _sanitize(q)
+
+    # make it 2d array if only 1 query point was passed, to be able to iterate
+    q = q[None, :] if isinstance(q, np.ndarray) and q.ndim == 1 else q
 
     dist_func = {
         '1-norm': _dist_1norm,
@@ -28,16 +32,14 @@ def kNNAlgorithm(q, X, y, k, distance='2-norm', policy='majority'):
     def single_knn(qi):
         dists = dist_func(X, qi)
         knn_indices = np.argsort(dists)[:k]
+        return vote_func(qi, X[knn_indices], y[knn_indices], dists[knn_indices])
 
-        knn_dists = dists[knn_indices]
-        X_knn = X[knn_indices]
-        y_knn = y[knn_indices]
-        return vote_func(qi, X_knn, y_knn, knn_dists)
-        
-    with ThreadPool(processes=cpu_count()) as pool:
-        y_pred = pool.map(single_knn, q)
-
-    return np.array(y_pred)
+    if n_proc == 1: # sequential
+        return np.array([single_knn(qi) for qi in q])
+    else: # parallel
+        with ThreadPool(processes=n_proc) as pool:
+            y_pred = pool.map(single_knn, q)
+        return np.array(y_pred)
 
 
 def _dist_1norm(a, b):
@@ -58,26 +60,20 @@ def _vote_majority(q, X, y, *args):
 
 
 def _vote_inverse(q, X, y, dists):
-    inv_dist = 1. / dists
-
-    win_vote = -1
-    win_label = 0
-    for label in np.unique(y).flat:
-        vote = np.sum(inv_dist[y == label])
-        
-        if vote > win_vote:
-            win_vote, win_label = vote, label
-
-    return win_label
+    inv_dist = np.divide(1., dists)
+    return _vote_distance(q, X, y, inv_dist)
 
 
 def _vote_sheppard(q, X, y, dists):
     exp_dist = np.exp(-dists)
+    return _vote_distance(q, X, y, exp_dist)
+    
 
+def _vote_distance(q, X, y, dists):
     win_vote = -1
     win_label = 0
     for label in np.unique(y).flat:
-        vote = np.sum(exp_dist[y == label])
+        vote = np.sum(dists[y == label])
         
         if vote > win_vote:
             win_vote, win_label = vote, label
