@@ -39,19 +39,19 @@ def generate_combinations(param_grid):
 
 def _bootstrap_cv(args):
         cv, params = args
-        acc, eff = cross_validate(kNNAlgorithm, cv, **params)
+        acc, eff = cross_validate(cv, **params)
 
         print(round(acc, 4), params)
         return acc, eff
 
 
-def cross_validate(model, cv, **params):
+def cross_validate(cv, **params):
     acc = 0
     eff = 0
 
     for X_train, X_test, y_train, y_test in cv:
         t0 = time.time()
-        y_pred = model(X_test, X_train, y_train, **params)
+        y_pred = kNNAlgorithm(X_test, X_train, y_train, **params)
         eff += time.time() - t0
         acc += accuracy_score(y_test, y_pred)
 

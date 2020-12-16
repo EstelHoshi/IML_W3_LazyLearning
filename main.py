@@ -77,16 +77,17 @@ def kNN_credita(k, similarity, policy, weighting, reduction):
             cv_splits[i] = X_redc, X_test, y_redc, y_test
             redc_count += X_redc.shape[0]
 
-        print('reduction efficiency: {}s'.format(round(time.time() - t0, 2)))
+        redc_eff = (time.time() - t0) / len(cv_splits)
+        print('reduction efficiency: {}s'.format(round(redc_eff, 2)))
 
         avg_redc = redc_count / len(cv_splits)
         n = X_train.shape[0] + X_test.shape[0]
         print('reduction storage: {}/{} ({}%)'.format(round(avg_redc, 2), n, round(avg_redc * 100 / n, 2)))
         
-    stats = cross_validate(kNNAlgorithm, cv_splits, k=k, distance=similarity, policy=policy)
+    stats = cross_validate(cv_splits, k=k, distance=similarity, policy=policy)
 
-    print('accuracy:', round(stats[0], 4))
-    print(f'efficiency: {round(stats[1], 4)}s')
+    print('accuracy:', round(stats[0], 6))
+    print(f'efficiency: {round(stats[1], 6)}s')
 
 
 # -----------------------------------------------------------------------------------------
