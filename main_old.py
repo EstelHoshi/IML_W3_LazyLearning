@@ -41,13 +41,11 @@ def kNN_kropt(i, k, similarity, policy, weighting):
 
 def kNN_satimage(i, k, similarity, policy, weighting):
     X_train, y_train, X_test, y_test = datasetsCBR.load_satimage(i)
-    kNNy_test = kNNAlgorithm_Estel(X_train.to_numpy(),y_train.to_numpy(),X_test.to_numpy(),k, similarity, policy, weighting)
-
+    kNNy_test = kNNAlgorithm_Estel(X_train,y_train,X_test,k, similarity, policy, weighting)
     y_test = np.array(y_test).astype(int)
     acc = np.nansum((y_test-kNNy_test)/(y_test.astype(int)-kNNy_test))
     acc = 100-100*acc/len(y_test)
     print(acc)
-    print(np.shape(y_train.to_numpy()))
 
 
 def kNN_credita(i, k, similarity, policy, weighting):
@@ -81,13 +79,7 @@ def reductionkNN_kropt(i, k, similarity, policy, weighting):
     pass
 def reductionkNN_satimage(i, k, similarity, policy, weighting):
     X_train, y_train, X_test, y_test = datasetsCBR.load_satimage(i)
-    redkNNy_test = reductionKNNAlgorithm_Estel(X_train.to_numpy(),y_train.to_numpy(),X_test.to_numpy(),k, similarity, policy, weighting)
-    y_test = np.array(y_test).astype(int)
-    acc = np.nansum((y_test-redkNNy_test)/(y_test.astype(int)-redkNNy_test))
-    acc = 100-100*acc/len(y_test)
-    print(acc)
-
-
+    kNNy_test = reductionKNNAlgorithm_Estel(X_train,y_train,X_test,k, similarity, policy, weighting)
     #y_test = np.array(y_test).astype(int)
     #print(np.shape(y_test))
     #print(y_test)

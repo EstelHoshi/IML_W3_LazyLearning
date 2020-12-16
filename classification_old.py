@@ -7,9 +7,9 @@ def kNNAlgorithm():
     pass
 
 def kNNAlgorithm_Estel(X_train,y_train,X_test,k, similarity, policy, weighting):
-    #X_train = X_train.to_numpy()
-    #X_test = X_test.to_numpy()
-    #y_train = y_train.to_numpy()
+    X_train = X_train.to_numpy()
+    X_test = X_test.to_numpy()
+    y_train = y_train.to_numpy()
 
     #y_train = y_train.astype(int)
     #y_train = y_train.reshape(len(y_train))
