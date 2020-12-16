@@ -5,8 +5,8 @@ import pandas as pd
 from scipy.io.arff import loadarff
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, LabelEncoder
 from sklearn.compose import ColumnTransformer
-from collections import defaultdict
 from sklearn.feature_selection import mutual_info_classif
+from ReliefF import ReliefF
 
 
 def load_kropt(i):
@@ -29,10 +29,10 @@ def load_satimage(i):
     return df_train, df_train_label, df_test, df_test_label
 
 
-def load_credita(feature_selection=None):
+def load_credita(weighting=None, **extra_kwargs):
     cv_splits = []
 
-    # preprocess first fold keeping statistics for next folds
+    # preprocess the first fold keeping statistics for next folds
     train_path = os.path.join('datasetsCBR', 'credit-a', f'credit-a.fold.000000.train.arff')
     test_path = os.path.join('datasetsCBR', 'credit-a', f'credit-a.fold.000000.test.arff')
 
@@ -69,7 +69,7 @@ def load_credita(feature_selection=None):
     X = pd.DataFrame(X_arr, columns=col_transformer.get_feature_names())
 
     # feature selection
-    if feature_selection == 'information_gain':
+    if weighting == 'information_gain':
         discrete_features = np.ones(len(X.columns), dtype=np.bool)
         discrete_features[:-len(num_cols)] = False
         weights = mutual_info_classif(X, y, discrete_features=discrete_features)
@@ -81,6 +81,22 @@ def load_credita(feature_selection=None):
 
         # apply weights to features
         X *= weights
+
+    elif weighting == 'relief':
+        n_neighbors = extra_kwargs.get('n_neighbors', 200)
+        relief = ReliefF(n_neighbors=n_neighbors, n_features_to_keep=X.shape[1])
+        relief.fit(X.values, y)
+        weights = relief.feature_scores
+
+        # normalize weights
+        min_ = np.min(weights)
+        max_ = np.max(weights)
+        weights = (weights - min_) / (max_ - min_)
+        weights[weights == 0] = 1e-6
+
+        # apply weights to features
+        X *= weights
+
     else:
         weights = None
 

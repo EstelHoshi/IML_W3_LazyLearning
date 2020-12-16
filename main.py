@@ -8,7 +8,7 @@ import time
 import datasetsCBR
 from classification import kNNAlgorithm
 from reduction import reductionKNNAlgorithm
-from model_selection import GridSearchCV
+from model_selection import GridSearchCV, cross_validate
 
 
 K_FOLDS = 10
@@ -29,7 +29,7 @@ def cli():
               help='Distance / similarity function')
 @click.option('-p', '--policy', type=Choice(['majority', 'inverse', 'sheppard']), default='majority',
               help='Policy for deciding the solution of a query')
-@click.option('-w', '--weighting', type=Choice(['equal', 'XXX', 'YYY']), default='equal',
+@click.option('-w', '--weighting', type=Choice(['uniform', 'XXX', 'YYY']), default='uniform',
               help='Method to weight features')
 @click.option('-r', '--reduction', type=Choice(['no', 'drop2', 'drop3', 'XXX', 'YYY']), default='no',
               help='Method to reduce the number of instances')
@@ -55,7 +55,7 @@ def kNN_satimage(k, similarity, policy, weighting):
 
 
 def kNN_credita(k, similarity, policy, weighting, reduction):
-    cv_splits = datasetsCBR.load_credita(feature_selection=weighting)
+    cv_splits = datasetsCBR.load_credita(weighting=weighting)
     # cv_splits = []
     # for j in range(K_FOLDS):
     #     X_train, y_train, X_test, y_test = datasetsCBR.load_satimage(j)
@@ -64,26 +64,29 @@ def kNN_credita(k, similarity, policy, weighting, reduction):
     #     X_test.pop('clase')
     #     y_test = y_test.astype(np.int64).values.ravel()
     #     cv_splits.append((X_train, X_test, y_train, y_test))
-    # # no: 0.9102, drop2: 0.8965, drop3: 0.8925
+    # no: 0.9102, drop2: 0.8965, drop3: 0.8925
 
     # perform reduction
     if reduction != 'no':
+        redc_count = 0
         t0 = time.time()
         for i in range(len(cv_splits)):
             X_train, X_test, y_train, y_test = cv_splits[i]
             X_redc, y_redc = reductionKNNAlgorithm(X_train, y_train, k=k, algorithm=reduction,
                                                    distance=similarity, policy=policy)
             cv_splits[i] = X_redc, X_test, y_redc, y_test
-        print('reduce time:', round(time.time() - t0, 2), 's')
-        
-    sum_accuracy = 0
-    for X_train, X_test, y_train, y_test in cv_splits:
-        y_pred = kNNAlgorithm(X_test, X_train, y_train, k, distance=similarity, policy=policy)
-        accuracy = metrics.accuracy_score(y_test, y_pred)
-        sum_accuracy += accuracy
-        print(round(accuracy, 4))
+            redc_count += X_redc.shape[0]
 
-    print('mean accuracy:', round(sum_accuracy / K_FOLDS, 4))
+        print('reduction efficiency: {}s'.format(round(time.time() - t0, 2)))
+
+        avg_redc = redc_count / len(cv_splits)
+        n = X_train.shape[0] + X_test.shape[0]
+        print('reduction storage: {}/{} ({}%)'.format(round(avg_redc, 2), n, round(avg_redc * 100 / n, 2)))
+        
+    stats = cross_validate(kNNAlgorithm, cv_splits, k=k, distance=similarity, policy=policy)
+
+    print('accuracy:', round(stats[0], 4))
+    print(f'efficiency: {round(stats[1], 4)}s')
 
 
 # -----------------------------------------------------------------------------------------
@@ -92,7 +95,10 @@ def kNN_credita(k, similarity, policy, weighting, reduction):
 @click.option('-d', '--dataset', type=Choice(['kropt', 'satimage', 'credita']), default='satimage',
               help='Dataset name')
 def gridsearch(dataset):
-    cv_splits = datasetsCBR.load_credita()
+    cv_splits_un = datasetsCBR.load_credita(weighting=None)
+    cv_splits_ig = datasetsCBR.load_credita(weighting='information_gain')
+    cv_splits_rf = datasetsCBR.load_credita(weighting='relief')
+
     # cv_splits = []
     # for j in range(K_FOLDS):
     #     X_train, y_train, X_test, y_test = datasetsCBR.load_satimage(6)
@@ -107,10 +113,22 @@ def gridsearch(dataset):
         'distance': ['1-norm', '2-norm', 'chebyshev'],
         'policy': ['majority', 'inverse', 'sheppard']
     }
-    t0 = time.time()
-    best = GridSearchCV(cv_splits, param_grid)
-    print('best:', round(best[0], 6), best[1])
-    print(round(time.time() - t0, 2), 's')
+
+    history = GridSearchCV(cv_splits_un, param_grid)
+    history['weighting'] = 'uniform'
+
+    h = GridSearchCV(cv_splits_ig, param_grid)
+    h['weighting'] = 'information_gain'
+    history = history.append(h)
+
+    h = GridSearchCV(cv_splits_rf, param_grid)
+    h['weighting'] = 'relief'
+    history = history.append(h)
+
+    history = history.sort_values('accuracy')
+    print('\nbest:')
+    print(history.iloc[-1])
+
 
 if __name__ == "__main__":
     cli()

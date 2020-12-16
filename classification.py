@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from multiprocessing import cpu_count
 from multiprocessing.dummy import Pool as ThreadPool
 
 

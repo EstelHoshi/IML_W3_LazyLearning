@@ -1,9 +1,5 @@
 import numpy as np
-import pandas as pd
-from multiprocessing import cpu_count
 from multiprocessing.dummy import Pool as ThreadPool
-from multiprocessing import Pool
-import time
 from classification import (kNNAlgorithm, _sanitize, _dist_1norm, _dist_2norm,
                             _dist_chebyshev, _vote_majority, _vote_inverse,
                             _vote_sheppard)
