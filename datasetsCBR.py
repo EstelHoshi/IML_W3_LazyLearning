@@ -36,10 +36,10 @@ def load_credita(weighting=None, **extra_kwargs):
     train_path = os.path.join('datasetsCBR', 'credit-a', f'credit-a.fold.000000.train.arff')
     test_path = os.path.join('datasetsCBR', 'credit-a', f'credit-a.fold.000000.test.arff')
 
-    X_train = pd.DataFrame(loadarff(train_path)[0])
-    X_test = pd.DataFrame(loadarff(test_path)[0])
+    df_train = pd.DataFrame(loadarff(train_path)[0])
+    df_test = pd.DataFrame(loadarff(test_path)[0])
 
-    X = X_train.append(X_test)
+    X = df_train.append(df_test)
     y = X.pop('class')
 
     y_label_encoder = LabelEncoder()
@@ -68,11 +68,14 @@ def load_credita(weighting=None, **extra_kwargs):
 
     X = pd.DataFrame(X_arr, columns=col_transformer.get_feature_names())
 
+    p = len(df_train)
+    X_train, X_test, y_train, y_test = X[:p], X[p:], y[:p], y[p:]
+
     # feature selection
     if weighting == 'information_gain':
-        discrete_features = np.ones(len(X.columns), dtype=np.bool)
+        discrete_features = np.ones(len(X_train.columns), dtype=np.bool)
         discrete_features[:-len(num_cols)] = False
-        weights = mutual_info_classif(X, y, discrete_features=discrete_features)
+        weights = mutual_info_classif(X_train, y_train, discrete_features=discrete_features)
         
         # normalize weights
         min_ = np.min(weights)
@@ -80,12 +83,13 @@ def load_credita(weighting=None, **extra_kwargs):
         weights = (weights - min_) / (max_ - min_)
 
         # apply weights to features
-        X *= weights
+        X_train *= weights
+        X_test *= weights
 
     elif weighting == 'relief':
         n_neighbors = extra_kwargs.get('n_neighbors', 200)
         relief = ReliefF(n_neighbors=n_neighbors, n_features_to_keep=X.shape[1])
-        relief.fit(X.values, y)
+        relief.fit(X_train.values, y_train)
         weights = relief.feature_scores
 
         # normalize weights
@@ -95,24 +99,20 @@ def load_credita(weighting=None, **extra_kwargs):
         weights[weights == 0] = 1e-6
 
         # apply weights to features
-        X *= weights
+        X_train *= weights
+        X_test *= weights
 
-    else:
-        weights = None
-
-    p = len(X_train)
-    cv_splits.append((X[:p], X[p:], y[:p], y[p:]))
-
+    cv_splits.append((X_train, X_test, y_train, y_test))
 
     # preprocess rest of folds
     for i in range(1, 10):
         train_path = os.path.join('datasetsCBR', 'credit-a', f'credit-a.fold.00000{str(i)}.train.arff')
         test_path = os.path.join('datasetsCBR', 'credit-a', f'credit-a.fold.00000{str(i)}.test.arff')
 
-        X_train = pd.DataFrame(loadarff(train_path)[0])
-        X_test = pd.DataFrame(loadarff(test_path)[0])
+        df_train = pd.DataFrame(loadarff(train_path)[0])
+        df_test = pd.DataFrame(loadarff(test_path)[0])
 
-        X = X_train.append(X_test)
+        X = df_train.append(df_test)
         y = X.pop('class')
 
         y = y_label_encoder.transform(y)
@@ -131,12 +131,41 @@ def load_credita(weighting=None, **extra_kwargs):
         X_arr = col_transformer.transform(X)
         X = pd.DataFrame(X_arr, columns=col_transformer.get_feature_names())
 
-        # feature selection
-        if weights is not None:
-            X *= weights
+        p = len(df_train)
+        X_train, X_test, y_train, y_test = X[:p], X[p:], y[:p], y[p:]
 
-        p = len(X_train)
-        cv_splits.append((X[:p], X[p:], y[:p], y[p:]))
+        # feature selection
+        if weighting == 'information_gain':
+            discrete_features = np.ones(len(X_train.columns), dtype=np.bool)
+            discrete_features[:-len(num_cols)] = False
+            weights = mutual_info_classif(X_train, y_train, discrete_features=discrete_features)
+            
+            # normalize weights
+            min_ = np.min(weights)
+            max_ = np.max(weights)
+            weights = (weights - min_) / (max_ - min_)
+
+            # apply weights to features
+            X_train *= weights
+            X_test *= weights
+
+        elif weighting == 'relief':
+            n_neighbors = extra_kwargs.get('n_neighbors', 200)
+            relief = ReliefF(n_neighbors=n_neighbors, n_features_to_keep=X.shape[1])
+            relief.fit(X_train.values, y_train)
+            weights = relief.feature_scores
+
+            # normalize weights
+            min_ = np.min(weights)
+            max_ = np.max(weights)
+            weights = (weights - min_) / (max_ - min_)
+            weights[weights == 0] = 1e-6
+
+            # apply weights to features
+            X_train *= weights
+            X_test *= weights
+
+        cv_splits.append((X_train, X_test, y_train, y_test))
     
     return cv_splits
 

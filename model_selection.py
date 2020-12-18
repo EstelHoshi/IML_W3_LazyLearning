@@ -10,13 +10,16 @@ from multiprocessing import Pool
 from joblib import Parallel, delayed
 
 
-def GridSearchCV(cv_splits, param_grid, n_proc=2):
+def GridSearchCV(cv_splits, param_grid, n_proc=1):
     combs = generate_combinations(param_grid)
 
-    with Pool(processes=n_proc) as pool:
-        results = pool.map(_bootstrap_cv, [(cv_splits, c) for c in combs])
-    # results = list(map(cross_validate_knn, [(cv_splits, c) for c in combs]))
+    if n_proc == 1:
+        results = list(map(_bootstrap_cv, [(cv_splits, c) for c in combs]))
+    else:
+        with ThreadPool(processes=n_proc) as pool:
+            results = pool.map(_bootstrap_cv, [(cv_splits, c) for c in combs])
 
+    # create df with results
     history = pd.DataFrame(results, columns=['accuracy', 'efficiency'])
     cols = list(param_grid.keys())
     values = [list(c.values()) for c in combs]
@@ -41,7 +44,7 @@ def _bootstrap_cv(args):
         cv, params = args
         acc, eff = cross_validate(cv, **params)
 
-        print(round(acc, 4), params)
+        # print(round(acc, 4), params)
         return acc, eff
 
 
