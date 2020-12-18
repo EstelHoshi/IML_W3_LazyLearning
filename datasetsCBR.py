@@ -78,6 +78,8 @@ def load_credita(weighting=None, **extra_kwargs):
         weights = mutual_info_classif(X_train, y_train, discrete_features=discrete_features)
         
         # normalize weights
+        # weights = weights / np.max(weights)
+        # weights = weights / np.linalg.norm(weights)
         min_ = np.min(weights)
         max_ = np.max(weights)
         weights = (weights - min_) / (max_ - min_)
@@ -93,6 +95,8 @@ def load_credita(weighting=None, **extra_kwargs):
         weights = relief.feature_scores
 
         # normalize weights
+        # weights = weights / np.max(weights)
+        # weights = weights / np.linalg.norm(weights)
         min_ = np.min(weights)
         max_ = np.max(weights)
         weights = (weights - min_) / (max_ - min_)
@@ -141,6 +145,8 @@ def load_credita(weighting=None, **extra_kwargs):
             weights = mutual_info_classif(X_train, y_train, discrete_features=discrete_features)
             
             # normalize weights
+            # weights = weights / np.max(weights)
+            # weights = weights / np.linalg.norm(weights)
             min_ = np.min(weights)
             max_ = np.max(weights)
             weights = (weights - min_) / (max_ - min_)
@@ -156,6 +162,8 @@ def load_credita(weighting=None, **extra_kwargs):
             weights = relief.feature_scores
 
             # normalize weights
+            # weights = weights / np.max(weights)
+            # weights = weights / np.linalg.norm(weights)
             min_ = np.min(weights)
             max_ = np.max(weights)
             weights = (weights - min_) / (max_ - min_)

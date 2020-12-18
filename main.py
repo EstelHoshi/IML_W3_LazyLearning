@@ -54,7 +54,7 @@ def kNN(dataset, k, similarity, policy, weighting, reduction):
     if reduction != 'no':
         # reduce each fold separately
         saved_inst_count = 0
-        
+
         t0 = time.time()
         for i in tqdm(range(len(cv_splits))):   # progress bar
             X_train, X_test, y_train, y_test = cv_splits[i]
@@ -63,8 +63,8 @@ def kNN(dataset, k, similarity, policy, weighting, reduction):
             cv_splits[i] = X_redc, X_test, y_redc, y_test
             saved_inst_count += X_redc.shape[0]
 
-        redc_eff = (time.time() - t0) / len(cv_splits)
-        print('reduction efficiency: {}s'.format(round(redc_eff, 2)))
+        reduce_efficiency = (time.time() - t0) / len(cv_splits)
+        print('reduction efficiency: {}s'.format(round(reduce_efficiency, 2)))
 
         avg_redc = saved_inst_count / len(cv_splits)
         n = X_train.shape[0] + X_test.shape[0]
@@ -103,7 +103,7 @@ def gridsearch(dataset, out, cv):
             y_test = y_test.astype(np.int64).values.ravel()
             cv_splits.append((X_train, X_test, y_train, y_test))
 
-        cv_splits_all += cv_splits * 3  # temporal fix
+        cv_splits_all = [cv_splits] * 3  # temporal fix
 
     if cv == 'no':
         # flatten, squeeze to perform gridsearch on each fold separately
@@ -138,8 +138,9 @@ def gridsearch(dataset, out, cv):
         history['fold'] = dataset + '-' +  ((history.index // c) % K_FOLDS).astype(str)
 
     # print best
+    history = history.sort_values('accuracy')
     print('\nbest:')
-    print(history.sort_values('accuracy').iloc[-1])
+    print(history.iloc[-1])
 
     # save df
     if out is not None:
@@ -147,6 +148,87 @@ def gridsearch(dataset, out, cv):
             out += '.csv'
         history.to_csv(out, index=False)
 
+
+# -----------------------------------------------------------------------------------------
+# Test all reduction algorithms for a specific kNN model
+@cli.command('test-reduction')
+@click.option('-d', '--dataset', type=Choice(['satimage', 'credita']), default='credita',
+              help='Dataset name')
+@click.option('-k', type=int, default=3, help='Value k for the nearest neighours to consider')
+@click.option('-s', '--similarity', type=Choice(['1-norm', '2-norm', 'chebyshev']), default='2-norm', 
+              help='Distance / similarity function')
+@click.option('-p', '--policy', type=Choice(['majority', 'inverse', 'sheppard']), default='majority',
+              help='Policy for deciding the solution of a query')
+@click.option('-w', '--weighting', type=Choice(['uniform', 'information_gain', 'relief']), default='uniform',
+              help='Method to weight features')
+@click.option('-o', '--out', type=str, default=None, help='Output file name')
+@click.option('-cv', type=str, default='yes', help='Whether to compute the average over k-folds or '
+              'consider each fold as a separate dataset')
+def test_reduction(dataset, k, similarity, policy, weighting, out, cv):
+    if dataset == 'credita':
+        cv_splits = datasetsCBR.load_credita(weighting=weighting)
+
+    elif dataset == 'satimage':
+        cv_splits = []
+        for j in range(K_FOLDS):
+            X_train, y_train, X_test, y_test = datasetsCBR.load_satimage(j)
+            X_train.pop('clase')
+            y_train = y_train.astype(np.int64).values.ravel()
+            X_test.pop('clase')
+            y_test = y_test.astype(np.int64).values.ravel()
+            cv_splits.append((X_train, X_test, y_train, y_test))
+        # no: 0.9102, drop2: 0.8965, drop3: 0.8925
+
+    # perform reduction
+    history = pd.DataFrame()
+    reductions = ['no', 'drop2', 'drop3']
+    pbar = tqdm(total=len(reductions) * len(cv_splits))
+
+    for reduction in reductions:
+        reduce_efficiency = []
+        percentage = []
+        accuracy = []
+        efficiency = []
+
+        for X_train, X_test, y_train, y_test in cv_splits:   # progress bar
+            t0 = time.time()
+            X_redc, y_redc = reductionKNNAlgorithm(X_train, y_train, k=k, algorithm=reduction,
+                                                    distance=similarity, policy=policy)
+            reduce_efficiency.append(time.time() - t0)
+            percentage.append(X_redc.shape[0] * 100 / X_train.shape[0])
+
+            stats = cross_validate([(X_redc, X_test, y_redc, y_test)], k=k, distance=similarity, policy=policy)
+            accuracy.append(stats[0])
+            efficiency.append(stats[1])
+            pbar.update()
+
+        if cv == 'no':
+            h = pd.DataFrame(zip(accuracy, efficiency, reduce_efficiency, percentage),
+                columns=['accuracy', 'efficiency', 'reduce_efficiency', 'percentage'])
+            h['dataset'] = [dataset + '-' + str(i) for i in range(len(cv_splits))]
+
+        else:
+            mean = np.mean([accuracy, efficiency, reduce_efficiency, percentage], axis=1)
+            h = pd.DataFrame(mean.reshape(-1, mean.shape[0]), columns=['accuracy', 'efficiency', 
+                             'reduce_efficiency', 'percentage'])
+            h['dataset'] = dataset
+
+        h['algorithm'] = reduction
+        history = history.append(h)
+
+    pbar.close()
+
+    # print best
+    history = history.sort_values('accuracy')
+    print('\nbest:')
+    print(history.iloc[-1])
+
+    # save df
+    if out is not None:
+        if not out.endswith('.csv'):
+            out += '.csv'
+        history.to_csv(out, index=False)
+    
 
 if __name__ == "__main__":
     cli()

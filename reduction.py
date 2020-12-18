@@ -12,6 +12,8 @@ def reductionKNNAlgorithm(X, y, algorithm='drop2', **kwargs):
         return DROP(X, y, v=2, **kwargs)
     elif algorithm == 'drop3':
         return DROP(X, y, v=3, **kwargs)
+    else:
+        return X, y
 
 
 def DROP(X, y, distance='2-norm', v=2, n_proc=2, **knn_kwargs):
