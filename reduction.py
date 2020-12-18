@@ -50,7 +50,7 @@ def reductionKNNAlgorithm_Estel(X_train,y_train,X_test,K, similarity, policy, we
     # A[5,2] = 1
     # A[6,3] = 1
     # A[7,3] = 1
-    #print(A)
+    # #print(A)
 
     A = np.int8(A)                                 # I was hoping this would reduce the computation time but it seems not
     id_A = np.array(range(len(A)))
@@ -62,19 +62,14 @@ def reductionKNNAlgorithm_Estel(X_train,y_train,X_test,K, similarity, policy, we
         ##step1##
         col_del = []
         row_del = []
-        for i in range(np.shape(A)[1]): #for each column in the binary matrix A
-            #col = np.sum(A[:,i],axis = 0) #Sum
+        for i in range(np.shape(A)[1]):            # for each column in the binary matrix A
             RN_i = np.where(A[:,i] == 1)[0] #RN of column i
-            #print(RN_i)
             if len(RN_i) == 1:  #if its the single RN of column i
                 change = True
-                #!!!!!!!!!!!!!!!!!!!!S.append(X_train[RN_i,:])      # add to the subset the instance
                 S.append(id_A[RN_i])
                 col2app = np.where(A[RN_i,:] == 1)[1]               # search if there is this RN is a RN of another column
                 for c2a in col2app:
                     col_del.append(c2a)
-                #col_del.append(np.where(A[RN_i,:] == 1)[1]) #search if there is this RN is a RN of another column
-
                 row_del.append(RN_i)
 
         A = np.delete(A, row_del, 0)                        # delete rows
@@ -88,62 +83,44 @@ def reductionKNNAlgorithm_Estel(X_train,y_train,X_test,K, similarity, policy, we
         for j in range(np.shape(A)[0]):
             print(j)
             if A[j,0]!=2:   #if j not in row_del:
-                #j_no = row_del + [j]
                 for k in range(j+1,rows):
                     if A[k,0] !=2: # if k not in j_no:
                         row_dif = A[j,:] - A[k,:]#np.subtract(A[j,:],A[k,:]) #A[j,:] - A[k,:]
                         if not(1 in row_dif):
                             change = True
-                            #row_del.append(j)
                             A[j,0] = 2
                             break
                         elif not (-1 in row_dif):
-                            #row_del.append(k)
+                            change = True
                             A[k,0] = 2
 
         id_A = np.delete(id_A, np.where(A[:, 0] == 2))
         A = np.delete(A,np.where(A[:,0]==2),0)
-        print(A)
 
         ##step3##
         for i in range(np.shape(A)[1]):
-            # #print("-----")
-            #print(i)
-            #print(row_del)
-            #print(j_no)
             if A[0,i]!=2:   #if j not in row_del:
-                #j_no = row_del + [j]
                 for k in range(i+1,np.shape(A)[1]):
                     if A[0,k] !=2: # if k not in j_no:
                         row_dif = A[:,i] - A[:,k]#np.subtract(A[j,:],A[k,:]) #A[j,:] - A[k,:]
                         if not(-1 in row_dif):
                             change = True
-                            #row_del.append(j)
                             A[0,i] = 2
                             break
                         elif not (1 in row_dif):
-                            #row_del.append(k)
+                            change = True
                             A[0,k] = 2
 
         A = np.delete(A,np.where(A[0,:]==2),1)
-        print(A)
 
-    print(A)
-    print(id_A)
     for i in id_A:
-        #!!!!!!!!!!!!!!!!!!!!!!!S.append(X_train[i,:])
         S.append(i)
 
-    print(S)
     X_train2 = np.zeros([len(S),np.shape(X_train)[1]])
     y_train2 = np.zeros([len(S),1])
     for j in range(len(S)):
         X_train2[j,:] = X_train[S[j],:]
         y_train2[j,0] = y_train[S[j]]
-
-    print(np.shape(X_train2))
-    print(np.shape(y_train2))
-    print(np.shape(X_test))
 
     y_test = kNNAlgorithm_Estel(X_train2, y_train2, X_test, K, similarity, policy, weighting)
 

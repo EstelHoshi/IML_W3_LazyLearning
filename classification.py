@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 from ReliefF import ReliefF
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
 
 def kNNAlgorithm():
     pass
@@ -18,12 +20,23 @@ def kNNAlgorithm_Estel(X_train,y_train,X_test,k, similarity, policy, weighting):
     print(np.shape(X_test))
 
     #1.-FEATURE PREPROCESSING
-    if weighting == 'ReliefF':
-        y_train2 = y_train.reshape(len(y_train))
-        fs = ReliefF(n_neighbors=k, n_features_to_keep=np.shape(X_test)[1])
-        x_train_fs = fs.fit_transform(X_train, y_train2)
-        A = np.sum(x_train_fs,axis=0)
-        print(np.max(X_train - x_train_fs))
+    if weighting == 'SelectKBest':
+        test = SelectKBest(score_func=chi2, k=np.shape(X_test)[1])
+        fit = test.fit(X_train, y_train.astype(int))
+        weighted_features = fit.scores_
+        weighted_features = weighted_features/np.max(weighted_features)
+        X_train = X_train * weighted_features
+        X_test = X_test * weighted_features
+    # elif weighting == 'ReliefF':
+    #     y_train2 = y_train.reshape(len(y_train))
+    #     fs = ReliefF(n_neighbors=k, n_features_to_keep=np.shape(X_test)[1])
+    #     x_train_fs = fs.fit_transform(X_train, y_train2)
+    #     features_weight = fs.feature_scores
+    #     print("AAAA")
+    #     print(features_weight)
+
+
+
 
     #2.-SIMILARITY METRIC
     # Compute distnace between each test data to each training data
@@ -33,9 +46,11 @@ def kNNAlgorithm_Estel(X_train,y_train,X_test,k, similarity, policy, weighting):
             d[:, i] = np.sum(np.abs(X_train - X_test[i, :]), axis=1)
     elif similarity == 'minkowski2': #Euclidian distance
         for i in range(len(X_test)):
-            d[:, i] = np.sum(np.square(X_train - X_test[i, :]), axis=1)
-    else:
-        print("not done yet")
+            d[:, i] = np.sqrt(np.sum(np.square(X_train - X_test[i, :]), axis=1))
+    elif similarity == 'chebyshev':
+        for i in range(len(X_test)):
+            d[:,i] = np.max(np.abs(X_train - X_test[i,:]), axis = 1)
+
 
 
     id_k = np.zeros([k, len(X_test)]).astype(int) #index (in the training dataset) of each NN intance
