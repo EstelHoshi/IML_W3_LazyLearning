@@ -1,9 +1,11 @@
 import click
 from click import Choice
 import numpy as np
+import pandas as pd
 from sklearn import metrics
 from sklearn.neighbors import KNeighborsClassifier
 import time
+from tqdm import tqdm
 
 import datasetsCBR
 from classification import kNNAlgorithm
@@ -29,7 +31,7 @@ def cli():
               help='Distance / similarity function')
 @click.option('-p', '--policy', type=Choice(['majority', 'inverse', 'sheppard']), default='majority',
               help='Policy for deciding the solution of a query')
-@click.option('-w', '--weighting', type=Choice(['uniform', 'XXX', 'YYY']), default='uniform',
+@click.option('-w', '--weighting', type=Choice(['uniform', 'information_gain', 'relief']), default='uniform',
               help='Method to weight features')
 @click.option('-r', '--reduction', type=Choice(['no', 'drop2', 'drop3', 'XXX', 'YYY']), default='no',
               help='Method to reduce the number of instances')
@@ -95,19 +97,23 @@ def kNN_credita(k, similarity, policy, weighting, reduction):
 @cli.command('gridsearch')
 @click.option('-d', '--dataset', type=Choice(['kropt', 'satimage', 'credita']), default='satimage',
               help='Dataset name')
-def gridsearch(dataset):
-    cv_splits_un = datasetsCBR.load_credita(weighting=None)
-    cv_splits_ig = datasetsCBR.load_credita(weighting='information_gain')
-    cv_splits_rf = datasetsCBR.load_credita(weighting='relief')
+@click.option('-o', '--out', type=str, default=None,
+              help='Output file name')
+def gridsearch(dataset, out):
+    if dataset == 'credita':
+        cv_splits_un = datasetsCBR.load_credita(weighting=None)
+        cv_splits_ig = datasetsCBR.load_credita(weighting='information_gain')
+        cv_splits_rf = datasetsCBR.load_credita(weighting='relief')
 
-    # cv_splits = []
-    # for j in range(K_FOLDS):
-    #     X_train, y_train, X_test, y_test = datasetsCBR.load_satimage(6)
-    #     X_train.pop('clase')
-    #     y_train = y_train.astype(np.int64).values.ravel()
-    #     X_test.pop('clase')
-    #     y_test = y_test.astype(np.int64).values.ravel()
-    #     cv_splits.append((X_train, X_test, y_train, y_test))
+    elif dataset == 'satimage':
+        cv_splits = []
+        for j in range(K_FOLDS):
+            X_train, y_train, X_test, y_test = datasetsCBR.load_satimage(j)
+            X_train.pop('clase')
+            y_train = y_train.astype(np.int64).values.ravel()
+            X_test.pop('clase')
+            y_test = y_test.astype(np.int64).values.ravel()
+            cv_splits.append((X_train, X_test, y_train, y_test))
 
     param_grid = {
         'k': [1, 3, 5, 7],
@@ -130,6 +136,82 @@ def gridsearch(dataset):
     print('\nbest:')
     print(history.iloc[-1])
 
+    if out is not None:
+        if not out.endswith('.csv'):
+            out += '.csv'
+        history.to_csv(out, index=False)
+
+
+
+# -----------------------------------------------------------------------------------------
+# Perform a grid search over all possible combination of parameters for kNN
+@cli.command('param-analysis')
+@click.option('-d', '--dataset', type=Choice(['kropt', 'satimage', 'credita']), default='satimage',
+              help='Dataset name')
+@click.option('-o', '--out', type=str, default=None,
+              help='Output file name')
+@click.option('-cv', type=str, default='yes',
+              help='Output file name')
+def param_analysis(dataset, out, cv):
+    if dataset == 'credita':
+        cv_splits_un = datasetsCBR.load_credita(weighting=None)
+        cv_splits_ig = datasetsCBR.load_credita(weighting='information_gain')
+        cv_splits_rf = datasetsCBR.load_credita(weighting='relief')
+
+        cv_splits_all = [cv_splits_un, cv_splits_ig, cv_splits_rf]
+
+    elif dataset == 'satimage':
+        # cv_splits = []
+        # for j in range(K_FOLDS):
+        #     X_train, y_train, X_test, y_test = datasetsCBR.load_satimage(j)
+        #     X_train.pop('clase')
+        #     y_train = y_train.astype(np.int64).values.ravel()
+        #     X_test.pop('clase')
+        #     y_test = y_test.astype(np.int64).values.ravel()
+        #     cv_splits.append((X_train, X_test, y_train, y_test))
+
+        # cv_splits_all += cv_splits * 3
+        pass
+
+    if cv == 'no':
+        cv_splits_all = [[split] for cv_splits in cv_splits_all for split in cv_splits]
+
+    param_grid = {
+        'k': [1, 3, 5, 7],
+        'distance': ['1-norm', '2-norm', 'chebyshev'],
+        'policy': ['majority', 'inverse', 'sheppard']
+    }
+
+
+    history = pd.DataFrame()
+
+    with tqdm(total=len(cv_splits_all)) as pbar:
+        for split in cv_splits_all:
+            h = GridSearchCV(split, param_grid)
+            history = history.append(h, ignore_index=True)
+            pbar.update()
+
+    c = 4 * 3 * 3   # 36, number of combinations of parameters
+    m = len(history) // 3
+
+    history.loc[:m*1, 'weighting'] = 'uniform'
+    history.loc[m*1:m*2, 'weighting'] = 'information_gain'
+    history.loc[m*2:m*3, 'weighting'] = 'relief'
+
+    if cv == 'no':
+        # tag fold number first 36 to 0, next 36 to 1, ...
+        history['fold'] += dataset + '-' +  ((history.index // c) % K_FOLDS).astype(str)
+
+    # print best
+    history = history.sort_values('accuracy')
+    print('\nbest:')
+    print(history.iloc[-1])
+
+    # save df
+    if out is not None:
+        if not out.endswith('.csv'):
+            out += '.csv'
+        history.to_csv(out, index=False)
 
 if __name__ == "__main__":
     cli()
