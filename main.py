@@ -7,13 +7,10 @@ from sklearn.neighbors import KNeighborsClassifier
 import time
 from tqdm import tqdm
 
-import datasetsCBR
+from datasetsCBR import load_credita, load_kropt, load_satimage, K_FOLDS
 from classification import kNNAlgorithm
 from reduction import reductionKNNAlgorithm
 from model_selection import GridSearchCV, cross_validate
-
-
-K_FOLDS = 10
 
 
 @click.group()
@@ -31,24 +28,16 @@ def cli():
               help='Distance / similarity function')
 @click.option('-p', '--policy', type=Choice(['majority', 'inverse', 'sheppard']), default='majority',
               help='Policy for deciding the solution of a query')
-@click.option('-w', '--weighting', type=Choice(['uniform', 'information_gain', 'relief']), default='uniform',
+@click.option('-w', '--weighting', type=Choice(['uniform', 'mutual_info', 'relief']), default='uniform',
               help='Method to weight features')
-@click.option('-r', '--reduction', type=Choice(['no', 'drop2', 'drop3', 'XXX', 'YYY']), default='no',
+@click.option('-r', '--reduction', type=Choice(['no', 'drop2', 'drop3', 'snn', 'YYY']), default='no',
               help='Method to reduce the number of instances')
 def kNN(dataset, k, similarity, policy, weighting, reduction):
     if dataset == 'credita':
-        cv_splits = datasetsCBR.load_credita(weighting=weighting)
+        cv_splits = load_credita(weighting=weighting)
 
     elif dataset == 'satimage':
-        cv_splits = []
-        for j in range(K_FOLDS):
-            X_train, y_train, X_test, y_test = datasetsCBR.load_satimage(j)
-            X_train.pop('clase')
-            y_train = y_train.astype(np.int64).values.ravel()
-            X_test.pop('clase')
-            y_test = y_test.astype(np.int64).values.ravel()
-            cv_splits.append((X_train, X_test, y_train, y_test))
-        # no: 0.9102, drop2: 0.8965, drop3: 0.8925
+        cv_splits = load_satimage(weighting=weighting)
 
     # perform reduction
     if reduction != 'no':
@@ -63,6 +52,7 @@ def kNN(dataset, k, similarity, policy, weighting, reduction):
             cv_splits[i] = X_redc, X_test, y_redc, y_test
             saved_inst_count += X_redc.shape[0]
 
+        # print performance measures
         reduce_efficiency = (time.time() - t0) / len(cv_splits)
         print('reduction efficiency: {}s'.format(round(reduce_efficiency, 2)))
 
@@ -87,28 +77,20 @@ def kNN(dataset, k, similarity, policy, weighting, reduction):
               'consider each fold as a separate dataset')
 def gridsearch(dataset, out, cv):
     if dataset == 'credita':
-        cv_splits_un = datasetsCBR.load_credita(weighting=None)
-        cv_splits_ig = datasetsCBR.load_credita(weighting='information_gain')
-        cv_splits_rf = datasetsCBR.load_credita(weighting='relief')
-
-        cv_splits_all = [cv_splits_un, cv_splits_ig, cv_splits_rf]
+        cv_splits_all = []
+        cv_splits_all.append(load_credita(weighting=None))
+        cv_splits_all.append(load_credita(weighting='mutual_info'))
+        cv_splits_all.append(load_credita(weighting='relief'))
 
     elif dataset == 'satimage':
-        cv_splits = []
-        for j in range(K_FOLDS):
-            X_train, y_train, X_test, y_test = datasetsCBR.load_satimage(j)
-            X_train.pop('clase')
-            y_train = y_train.astype(np.int64).values.ravel()
-            X_test.pop('clase')
-            y_test = y_test.astype(np.int64).values.ravel()
-            cv_splits.append((X_train, X_test, y_train, y_test))
-
-        cv_splits_all = [cv_splits] * 3  # temporal fix
+        cv_splits_all = []
+        cv_splits_all.append(load_satimage(weighting=None))
+        cv_splits_all.append(load_satimage(weighting='mutual_info'))
+        cv_splits_all.append(load_satimage(weighting='relief'))
 
     if cv == 'no':
-        # flatten, squeeze to perform gridsearch on each fold separately
+        # flatten, squeeze so as to perform gridsearch on each fold separately
         cv_splits_all = [[split] for cv_splits in cv_splits_all for split in cv_splits]
-
 
     param_grid = {
         'k': [1, 3, 5, 7],
@@ -129,7 +111,7 @@ def gridsearch(dataset, out, cv):
     # tag results with corresponding weighting methods
     m = len(history) // 3
     history.loc[:m*1, 'weighting'] = 'uniform'
-    history.loc[m*1:m*2, 'weighting'] = 'information_gain'
+    history.loc[m*1:m*2, 'weighting'] = 'mutual_info'
     history.loc[m*2:, 'weighting'] = 'relief'
 
     if cv == 'no':
@@ -142,7 +124,7 @@ def gridsearch(dataset, out, cv):
     print('\nbest:')
     print(history.iloc[-1])
 
-    # save df
+    # save history df
     if out is not None:
         if not out.endswith('.csv'):
             out += '.csv'
@@ -159,62 +141,54 @@ def gridsearch(dataset, out, cv):
               help='Distance / similarity function')
 @click.option('-p', '--policy', type=Choice(['majority', 'inverse', 'sheppard']), default='majority',
               help='Policy for deciding the solution of a query')
-@click.option('-w', '--weighting', type=Choice(['uniform', 'information_gain', 'relief']), default='uniform',
+@click.option('-w', '--weighting', type=Choice(['uniform', 'mutual_info', 'relief']), default='uniform',
               help='Method to weight features')
 @click.option('-o', '--out', type=str, default=None, help='Output file name')
 @click.option('-cv', type=str, default='yes', help='Whether to compute the average over k-folds or '
               'consider each fold as a separate dataset')
 def test_reduction(dataset, k, similarity, policy, weighting, out, cv):
     if dataset == 'credita':
-        cv_splits = datasetsCBR.load_credita(weighting=weighting)
+        cv_splits = load_credita(weighting=weighting)
 
     elif dataset == 'satimage':
-        cv_splits = []
-        for j in range(K_FOLDS):
-            X_train, y_train, X_test, y_test = datasetsCBR.load_satimage(j)
-            X_train.pop('clase')
-            y_train = y_train.astype(np.int64).values.ravel()
-            X_test.pop('clase')
-            y_test = y_test.astype(np.int64).values.ravel()
-            cv_splits.append((X_train, X_test, y_train, y_test))
-        # no: 0.9102, drop2: 0.8965, drop3: 0.8925
+        cv_splits = load_satimage(weighting=weighting)
 
     # perform reduction
     history = pd.DataFrame()
-    reductions = ['no', 'drop2', 'drop3']
+    reductions = ['no', 'drop2', 'drop3', 'snn']
     pbar = tqdm(total=len(reductions) * len(cv_splits))
 
     for reduction in reductions:
-        reduce_efficiency = []
-        percentage = []
-        accuracy = []
-        efficiency = []
+        partial_hist = pd.DataFrame()
 
+        # run reduction reduction on each fold and store performance metrics
         for X_train, X_test, y_train, y_test in cv_splits:   # progress bar
+            stats = pd.Series(dtype=np.float)
+
             t0 = time.time()
             X_redc, y_redc = reductionKNNAlgorithm(X_train, y_train, k=k, algorithm=reduction,
                                                     distance=similarity, policy=policy)
-            reduce_efficiency.append(time.time() - t0)
-            percentage.append(X_redc.shape[0] * 100 / X_train.shape[0])
+            stats['reduce_efficiency'] = time.time() - t0
+            stats['percentage'] = X_redc.shape[0] * 100 / X_train.shape[0]
 
-            stats = cross_validate([(X_redc, X_test, y_redc, y_test)], k=k, distance=similarity, policy=policy)
-            accuracy.append(stats[0])
-            efficiency.append(stats[1])
+            acc, eff = cross_validate([(X_redc, X_test, y_redc, y_test)], k=k, distance=similarity, policy=policy)
+            stats['accuracy'] = acc
+            stats['efficiency'] = eff
+
+            partial_hist = partial_hist.append(stats, ignore_index=True)
             pbar.update()
 
         if cv == 'no':
-            h = pd.DataFrame(zip(accuracy, efficiency, reduce_efficiency, percentage),
-                columns=['accuracy', 'efficiency', 'reduce_efficiency', 'percentage'])
-            h['dataset'] = [dataset + '-' + str(i) for i in range(len(cv_splits))]
+            # tag result of each fold with a separate name
+            partial_hist['dataset'] = [dataset + '-' + str(i) for i in range(len(cv_splits))]
 
         else:
-            mean = np.mean([accuracy, efficiency, reduce_efficiency, percentage], axis=1)
-            h = pd.DataFrame(mean.reshape(-1, mean.shape[0]), columns=['accuracy', 'efficiency', 
-                             'reduce_efficiency', 'percentage'])
-            h['dataset'] = dataset
+            # average results across folds
+            partial_hist = partial_hist.mean()
+            partial_hist['dataset'] = dataset
 
-        h['algorithm'] = reduction
-        history = history.append(h)
+        partial_hist['algorithm'] = reduction
+        history = history.append(partial_hist, ignore_index=True)
 
     pbar.close()
 
@@ -223,53 +197,11 @@ def test_reduction(dataset, k, similarity, policy, weighting, out, cv):
     print('\nbest:')
     print(history.iloc[-1])
 
-    # save df
+    # save history df
     if out is not None:
         if not out.endswith('.csv'):
             out += '.csv'
         history.to_csv(out, index=False)
-    
-
-@cli.command('reductionkNN')
-@click.option('-d', '--dataset', nargs=2, type=(Choice(['kropt', 'satimage', 'credita']), Choice([str(i) for i in range(10)])),
-              default=('satimage', 0), help='[kropt|satimage|credita] [0,9]\n Dataset name, fold')
-@click.option('-k', type=int, default=7, help='Value k for the nearest neighours to consider')
-@click.option('-s', '--similarity', type=Choice(['minkowski1', 'minkowski2', 'chebyshev']), default='minkowski2',
-              help='Distance / similarity function')
-@click.option('-p', '--policy', type=Choice(['majority', 'inverse', 'sheppard']), default='majority',
-              help='Policy for deciding the solution of a query')
-@click.option('-w', '--weighting', type=Choice(['equal', 'SelectKBest']), default='equal',
-              help='Method to weight features')
-
-def reductionkNN(dataset, k, similarity, policy, weighting):
-    if dataset[0] == 'kropt':
-        reductionkNN_kropt(dataset[1], k, similarity, policy, weighting)
-
-    elif dataset[0] == 'satimage':
-        reductionkNN_satimage(dataset[1], k, similarity, policy, weighting)
-
-    elif dataset[0] == 'credita':
-        reductionkNN_credita(dataset[1], k, similarity, policy, weighting)
-
-def reductionkNN_kropt(i, k, similarity, policy, weighting):
-    pass
-def reductionkNN_satimage(i, k, similarity, policy, weighting):
-    X_train, y_train, X_test, y_test = datasetsCBR.load_satimage(i)
-    redkNNy_test = reductionKNNAlgorithm_Estel(X_train.to_numpy(),y_train.to_numpy(),X_test.to_numpy(),k, similarity, policy, weighting)
-    y_test = np.array(y_test).astype(int)
-    acc = np.nansum((y_test-redkNNy_test)/(y_test.astype(int)-redkNNy_test))
-    acc = 100-100*acc/len(y_test)
-    print(acc)
-
-
-    #y_test = np.array(y_test).astype(int)
-    #print(np.shape(y_test))
-    #print(y_test)
-    #acc = np.nansum((y_test-kNNy_test)/(y_test-kNNy_test))
-    #acc = 100-100*acc/len(y_test)
-    #print(acc)
-def reductionkNN_credita(i, k, similarity, policy, weighting):
-    pass
 
 
 if __name__ == "__main__":

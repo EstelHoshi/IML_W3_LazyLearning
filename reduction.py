@@ -7,6 +7,9 @@ from classification import (kNNAlgorithm, _sanitize, _dist_1norm, _dist_2norm,
 
 
 def reductionKNNAlgorithm(X, y, algorithm='drop2', **kwargs):
+    X = _sanitize(X)
+    y = _sanitize(y)
+
     algorithm = algorithm.lower()
 
     if algorithm == 'drop2':
@@ -22,9 +25,7 @@ def reductionKNNAlgorithm(X, y, algorithm='drop2', **kwargs):
         return X, y
 
 
-def DROP(X, y, distance='2-norm', v=2, n_proc=2, **knn_kwargs):
-    T = _sanitize(X)
-    y = _sanitize(y)
+def DROP(T, y, distance='2-norm', v=2, n_proc=2, **knn_kwargs):
 
     dist_func = {
         '1-norm': _dist_1norm,
@@ -109,7 +110,7 @@ def SNN(X_train, y_train): #SNN
     #X_train = X_train.to_numpy()
     #X_test = X_test.to_numpy()
     #y_train = y_train.to_numpy()
-    y_train = y_train.astype(int)               # ground truth
+    #y_train = y_train.astype(int)               # ground truth
     n = len(y_train)                            # original number of instances
 
     A = np.zeros([len(X_train), len(X_train)])  # initialize matrix A

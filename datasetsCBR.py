@@ -7,28 +7,54 @@ from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, LabelEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.feature_selection import mutual_info_classif
 from ReliefF import ReliefF
+from classification import _sanitize
 
+K_FOLDS = 10
 
 def load_kropt(i):
     return i, i
 
 
-def load_satimage(i):
-    train_path = os.path.join('datasetsCBR/satimage', 'satimage.fold.00000'+str(i)+'.train.arff')
-    test_path = os.path.join('datasetsCBR/satimage', 'satimage.fold.00000'+str(i)+'.test.arff')
+def load_satimage(weighting=None):
+    cv_splits = []
 
-    train_subset = loadarff(train_path)
-    test_subset = loadarff(test_path)
+    for i in range(K_FOLDS):
+        train_path = os.path.join('datasetsCBR/satimage', 'satimage.fold.00000'+str(i)+'.train.arff')
+        test_path = os.path.join('datasetsCBR/satimage', 'satimage.fold.00000'+str(i)+'.test.arff')
 
-    df_train = pd.DataFrame(train_subset[0])
-    df_test = pd.DataFrame(test_subset[0])
+        train_subset = loadarff(train_path)
+        test_subset = loadarff(test_path)
 
-    df_train_label = pd.DataFrame(df_train["clase"])
-    df_test_label = pd.DataFrame(df_test["clase"])
+        df_train = pd.DataFrame(train_subset[0])
+        df_test = pd.DataFrame(test_subset[0])
 
-    del df_train["clase"]
-    del df_test["clase"]
-    return df_train, df_train_label, df_test, df_test_label
+        df_train_label = pd.DataFrame(df_train["clase"])
+        df_test_label = pd.DataFrame(df_test["clase"])
+
+        df_train_label = df_train_label.astype(np.int).to_numpy().ravel()
+        df_test_label = df_test_label.astype(np.int).to_numpy().ravel()
+
+        del df_train["clase"]
+        del df_test["clase"]
+
+        # feature selection
+        if weighting == 'mutual_info':
+            weights = mutual_info(df_train, df_train_label)
+
+            # apply weights to features
+            df_train *= weights
+            df_test *= weights
+
+        elif weighting == 'relief':
+            weights = relief(df_train, df_train_label)
+
+            # apply weights to features
+            df_train *= weights
+            df_test *= weights
+
+        cv_splits.append((df_train, df_test, df_train_label, df_test_label))
+
+    return cv_splits
 
 
 def load_credita(weighting=None, **extra_kwargs):
@@ -74,35 +100,15 @@ def load_credita(weighting=None, **extra_kwargs):
     X_train, X_test, y_train, y_test = X[:p], X[p:], y[:p], y[p:]
 
     # feature selection
-    if weighting == 'information_gain':
-        discrete_features = np.ones(len(X_train.columns), dtype=np.bool)
-        discrete_features[:-len(num_cols)] = False
-        weights = mutual_info_classif(X_train, y_train, discrete_features=discrete_features)
-        
-        # normalize weights
-        # weights = weights / np.max(weights)
-        # weights = weights / np.linalg.norm(weights)
-        min_ = np.min(weights)
-        max_ = np.max(weights)
-        weights = (weights - min_) / (max_ - min_)
+    if weighting == 'mutual_info':
+        weights = mutual_info(X, y)
 
         # apply weights to features
         X_train *= weights
         X_test *= weights
 
     elif weighting == 'relief':
-        n_neighbors = extra_kwargs.get('n_neighbors', 200)
-        relief = ReliefF(n_neighbors=n_neighbors, n_features_to_keep=X.shape[1])
-        relief.fit(X_train.values, y_train)
-        weights = relief.feature_scores
-
-        # normalize weights
-        # weights = weights / np.max(weights)
-        # weights = weights / np.linalg.norm(weights)
-        min_ = np.min(weights)
-        max_ = np.max(weights)
-        weights = (weights - min_) / (max_ - min_)
-        weights[weights == 0] = 1e-6
+        weights = relief(X, y)
 
         # apply weights to features
         X_train *= weights
@@ -111,7 +117,7 @@ def load_credita(weighting=None, **extra_kwargs):
     cv_splits.append((X_train, X_test, y_train, y_test))
 
     # preprocess rest of folds
-    for i in range(1, 10):
+    for i in range(1, K_FOLDS):
         train_path = os.path.join('datasetsCBR', 'credit-a', f'credit-a.fold.00000{str(i)}.train.arff')
         test_path = os.path.join('datasetsCBR', 'credit-a', f'credit-a.fold.00000{str(i)}.test.arff')
 
@@ -141,35 +147,15 @@ def load_credita(weighting=None, **extra_kwargs):
         X_train, X_test, y_train, y_test = X[:p], X[p:], y[:p], y[p:]
 
         # feature selection
-        if weighting == 'information_gain':
-            discrete_features = np.ones(len(X_train.columns), dtype=np.bool)
-            discrete_features[:-len(num_cols)] = False
-            weights = mutual_info_classif(X_train, y_train, discrete_features=discrete_features)
-            
-            # normalize weights
-            # weights = weights / np.max(weights)
-            # weights = weights / np.linalg.norm(weights)
-            min_ = np.min(weights)
-            max_ = np.max(weights)
-            weights = (weights - min_) / (max_ - min_)
+        if weighting == 'mutual_info':
+            weights = mutual_info(X_train, y_train)
 
             # apply weights to features
             X_train *= weights
             X_test *= weights
 
         elif weighting == 'relief':
-            n_neighbors = extra_kwargs.get('n_neighbors', 200)
-            relief = ReliefF(n_neighbors=n_neighbors, n_features_to_keep=X.shape[1])
-            relief.fit(X_train.values, y_train)
-            weights = relief.feature_scores
-
-            # normalize weights
-            # weights = weights / np.max(weights)
-            # weights = weights / np.linalg.norm(weights)
-            min_ = np.min(weights)
-            max_ = np.max(weights)
-            weights = (weights - min_) / (max_ - min_)
-            weights[weights == 0] = 1e-6
+            weights = relief(X_train, y_train)
 
             # apply weights to features
             X_train *= weights
@@ -180,3 +166,30 @@ def load_credita(weighting=None, **extra_kwargs):
     return cv_splits
 
 
+def mutual_info(X, y):
+    discrete_features = np.empty(len(X.columns), dtype=np.bool)
+
+    # if the integer value is the same as the current value, then
+    # it means is is a discrete feature
+    for i, col in enumerate(X):
+        discrete_features[i] = np.all(X[col].astype(np.int) == X[col])
+
+    weights = mutual_info_classif(X, y, discrete_features=discrete_features)
+
+    return weights
+
+
+def relief(X, y, n_neighbors=200):
+    X = _sanitize(X)
+    y = _sanitize(y)
+
+    relief = ReliefF(n_neighbors=n_neighbors, n_features_to_keep=X.shape[1])
+    relief.fit(X, y)
+    weights = relief.feature_scores
+
+    # normalize weights
+    min_ = np.min(weights)
+    max_ = np.max(weights)
+    weights = (weights - min_) / (max_ - min_)
+
+    return weights
