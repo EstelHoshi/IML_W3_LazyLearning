@@ -1,5 +1,5 @@
 import pandas as pd
-from scipy.stats import friedmanchisquare, wilcoxon
+from scipy.stats import friedmanchisquare, wilcoxon, ttest_rel, ttest_ind
 import itertools
 
 
@@ -35,9 +35,8 @@ def global_best_model(data, metric):
 
 
 def get_model(data):
-    data['model'] = data['k'].astype(str) + '-' + data['policy'].astype(str) +\
-                    '-' + data['distance'].astype(str) + '-' + data['weighting'].astype(str)
-
+    data['model'] = data['k'].astype(str) + '-' + data['distance'].astype(str) +\
+                    '-' + data['policy'].astype(str) + '-' + data['weighting'].astype(str)
     return data
 
 
@@ -99,6 +98,8 @@ def generate_combinations(param):
 # Read Results
 df_gs_cv = pd.read_csv('results_credita_cv.csv')
 df_gs_folds = pd.read_csv('results_credita_folds.csv')
+df_reduction_cv = pd.read_csv('results_credita_reduction.csv')
+df_reduction_folds = pd.read_csv('results_credita_reduction_folds.csv')
 
 
 # Best Model per each parameter [k, policy, distance, weighting]
@@ -118,6 +119,8 @@ df_gs_folds_dist = get_folds_model(df_gs_folds, df_gs_cv_dist, params).sort_valu
 df_gs_folds_w = get_folds_model(df_gs_folds, df_gs_cv_w, params).sort_values(by=['k', 'fold'])
 
 # Hypothesis test
+
+# Best kNN algorithm
 accuracy_folds_k = get_numpy_folds(get_model(df_gs_folds_k), 'model', 'accuracy')
 accuracy_folds_pol = get_numpy_folds(get_model(df_gs_folds_pol), 'model', 'accuracy')
 accuracy_folds_dist = get_numpy_folds(get_model(df_gs_folds_dist), 'model', 'accuracy')
@@ -128,4 +131,7 @@ hypothesis_test(accuracy_folds_pol)
 hypothesis_test(accuracy_folds_dist)
 hypothesis_test(accuracy_folds_w)
 
-print('hola')
+# Comparison Best vs. with reduction algorithms
+df_reduction_folds = df_reduction_folds.sort_values(by=['algorithm', 'dataset'])
+accuracy_folds_reduced = get_numpy_folds(df_reduction_folds, 'algorithm', 'accuracy')
+hypothesis_test(accuracy_folds_reduced)
