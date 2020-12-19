@@ -26,6 +26,8 @@ def load_satimage(i):
     df_train_label = pd.DataFrame(df_train["clase"])
     df_test_label = pd.DataFrame(df_test["clase"])
 
+    del df_train["clase"]
+    del df_test["clase"]
     return df_train, df_train_label, df_test, df_test_label
 
 
