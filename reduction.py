@@ -20,6 +20,9 @@ def reductionKNNAlgorithm(X, y, algorithm='drop2', **kwargs):
 
     elif algorithm == 'snn':
         return SNN(X, y)
+
+    elif algorithm == 'enn':
+        return ENN(X, y, **kwargs)
         
     else:
         return X, y
@@ -94,15 +97,9 @@ def DROP(T, y, distance='2-norm', v=2, n_proc=2, **knn_kwargs):
 
 
 def ENN(X, y, **knn_kwargs):
-    n = X.shape[0]
-    mask = np.ones(n, dtype=np.bool)
-    y_pred = np.empty_like(y)
-    for i in range(n):
-        mask[i] = False
-        y_pred[i] = kNNAlgorithm(X[i], X[mask], y[mask], **knn_kwargs)[0]
-        mask[i] = True
-
-    return X[y_pred == y], y[y_pred == y] #, y_pred != y
+    knn_kwargs['n_proc'] = 2
+    y_pred = kNNAlgorithm(X, X, y, offset=1, **knn_kwargs)
+    return X[y_pred == y], y[y_pred == y]
 
 
 
@@ -220,4 +217,4 @@ def SNN(X_train, y_train): #SNN
         X_train2[j,:] = X_train[S[j],:]
         y_train2[j,0] = y_train[S[j]]
 
-    return X_train2, y_train2
+    return X_train2, y_train2.ravel()

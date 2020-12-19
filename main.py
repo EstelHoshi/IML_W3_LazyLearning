@@ -155,7 +155,7 @@ def test_reduction(dataset, k, similarity, policy, weighting, out, cv):
 
     # perform reduction
     history = pd.DataFrame()
-    reductions = ['no', 'drop2', 'drop3', 'snn']
+    reductions = ['no', 'enn', 'snn', 'drop2', 'drop3']
     pbar = tqdm(total=len(reductions) * len(cv_splits))
 
     for reduction in reductions:

@@ -8,7 +8,7 @@ def _sanitize(X):
     return X
 
 
-def kNNAlgorithm(q, X, y, k, distance='2-norm', policy='majority', offset=0, n_proc=1):
+def kNNAlgorithm(q, X, y, k, distance='2-norm', policy='majority', edit=False, n_proc=1):
     X = _sanitize(X)
     y = _sanitize(y)
     q = _sanitize(q)
@@ -17,9 +17,9 @@ def kNNAlgorithm(q, X, y, k, distance='2-norm', policy='majority', offset=0, n_p
     q = q[None, :] if isinstance(q, np.ndarray) and q.ndim == 1 else q
 
     dist_func = {
-        '1-norm': _dist_1norm,
-        '2-norm': _dist_2norm,
-        'chebyshev': _dist_chebyshev
+        '1-norm': lambda a, b: minkowski(a, b, 1),
+        '2-norm': lambda a, b: minkowski(a, b, 2),
+        'chebyshev': lambda a, b: minkowski(a, b, np.inf),
     }[distance]
 
     vote_func = {
@@ -28,29 +28,37 @@ def kNNAlgorithm(q, X, y, k, distance='2-norm', policy='majority', offset=0, n_p
         'sheppard': _vote_sheppard
     }[policy]
     
-    def single_knn(qi):
-        dists = dist_func(X, qi)
-        knn_indices = np.argsort(dists)[offset:k+offset]
-        return vote_func(qi, X[knn_indices], y[knn_indices], dists[knn_indices])
 
-    if n_proc == 1: # sequential
-        return np.array([single_knn(qi) for qi in q])
-    else: # parallel
-        with ThreadPool(processes=n_proc) as pool:
-            y_pred = pool.map(single_knn, q)
-        return np.array(y_pred)
+    dist = dist_func(X, q)
+    if edit:
+        dist[np.eye(dist.shape[0], dtype=bool)] = 1000
 
+    knn_idx = np.argsort(dist, axis=0)[:k].T
+    y_pred = np.empty(q.shape[0])
 
+    for i in range(q.shape[0]):
+        y_pred[i] = vote_func(q[i], X[knn_idx[i]], y[knn_idx[i]], dist[knn_idx[i]])
+
+    return y_pred
+    
 def _dist_1norm(a, b):
-    return np.linalg.norm(b - a, ord=1, axis=1)
+    return minkowski(a, b, 1)
+def _dist_2norm():
+    return minkowski(a, b, 2)
+def _dist_chebyshev():
+    return minkowski(a, b, np.inf)
 
+def minkowski(x, y, r):
+    if r == 1:  # Manhattan Distance (L1 norm)
+        d = np.sum(np.abs(x[:, None] - y), axis=2)
 
-def _dist_2norm(a, b):
-    return np.linalg.norm(b - a, ord=2, axis=1)
+    elif r == 2:  # Euclidean Distance (L2 norm)
+        d = np.sqrt(np.sum(x**2, axis=1)[:, np.newaxis] - 2*np.dot(x, y.T) + np.sum(y**2, axis=1))
 
+    elif r == np.inf:  # Chebyshev distance (sup Linf norm)
+        d = np.max(np.abs(x[:, None] - y), axis=2)
 
-def _dist_chebyshev(a, b):
-    return np.max(np.abs(b - a), axis=1)
+    return d
 
 
 def _vote_majority(q, X, y, *args):
