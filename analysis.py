@@ -20,6 +20,23 @@ def param_best_model(data, param, metric, tie_metric='no'):
     return df_param
 
 
+def get_isolated_param(data, param):
+    if param == 'k':
+        data = data[(data['policy'] == 'majority') & (data['distance'] == '2-norm')
+                    & (data['weighting'] == 'uniform')]
+    elif param == 'policy':
+        data = data[(data['k'] == 5) & (data['distance'] == '2-norm')
+                    & (data['weighting'] == 'uniform')]
+    elif param == 'distance':
+        data = data[(data['k'] == 5) & (data['policy'] == 'majority')
+                    & (data['weighting'] == 'uniform')]
+    elif param == 'weighting':
+        data = data[(data['k'] == 5) & (data['policy'] == 'majority')
+                    & (data['distance'] == '2-norm')]
+
+    return data
+
+
 def get_folds_model(data_folds, data_param, params):
     df_folds = pd.merge(data_folds, data_param[params], how='inner', on=params)
 
@@ -59,8 +76,10 @@ def hypothesis_test(models):
 
     if len(model_list) == 3:
         s, p = friedmanchisquare(model_list[0], model_list[1], model_list[2])
-    else:
+    elif len(model_list) == 4:
         s, p = friedmanchisquare(model_list[0], model_list[1], model_list[2], model_list[3])
+    else:
+        s, p = friedmanchisquare(model_list[0], model_list[1], model_list[2], model_list[3], model_list[4])
 
     print('Friedman Test:')
     print('p-value = ', round(p, 6))

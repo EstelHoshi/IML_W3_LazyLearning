@@ -11,8 +11,8 @@ from datasetsCBR import load_credita, load_kropt, load_satimage, K_FOLDS
 from classification import kNNAlgorithm
 from reduction import reductionKNNAlgorithm
 from model_selection import GridSearchCV, cross_validate
-from analysis import (param_best_model, global_best_model, get_model, 
-                      get_numpy_folds, get_folds_model, hypothesis_test)
+from analysis import (param_best_model, global_best_model, get_isolated_param,
+                      get_model, get_numpy_folds, get_folds_model, hypothesis_test)
 
 
 @click.group()
@@ -222,11 +222,16 @@ def analyze(gridsearch_results_folds, gridsearch_results_cv, reduction_results_f
     # df_reduction_cv = pd.read_csv('results_credita_reduction.csv')
     df_reduction_folds = pd.read_csv(reduction_results_folds)
 
-    # Best Model per each parameter [k, policy, distance, weighting]
-    df_gs_cv_k = param_best_model(df_gs_cv, 'k', 'accuracy', 'efficiency')
-    df_gs_cv_pol = param_best_model(df_gs_cv, 'policy', 'accuracy', 'efficiency')
-    df_gs_cv_dist = param_best_model(df_gs_cv, 'distance', 'accuracy', 'efficiency')
-    df_gs_cv_w = param_best_model(df_gs_cv, 'weighting', 'accuracy', 'efficiency')
+    # Best Model per each parameter in isolation [k, policy, distance, weighting]
+    df_gs_cv_k = param_best_model(get_isolated_param(df_gs_cv, 'k'), 'k', 'accuracy', 'efficiency')
+    df_gs_cv_pol = param_best_model(get_isolated_param(df_gs_cv, 'policy'), 'policy', 'accuracy', 'efficiency')
+    df_gs_cv_dist = param_best_model(get_isolated_param(df_gs_cv, 'distance'), 'distance', 'accuracy', 'efficiency')
+    df_gs_cv_w = param_best_model(get_isolated_param(df_gs_cv, 'weighting'), 'weighting', 'accuracy', 'efficiency')
+
+    df_best_k = global_best_model(df_gs_cv_k, 'accuracy')
+    df_best_pol = global_best_model(df_gs_cv_pol, 'accuracy')
+    df_best_dist = global_best_model(df_gs_cv_dist, 'accuracy')
+    df_best_w = global_best_model(df_gs_cv_w, 'accuracy')
 
     # Best overall model
     df_gs_cv_best = global_best_model(df_gs_cv, 'accuracy')
@@ -238,9 +243,16 @@ def analyze(gridsearch_results_folds, gridsearch_results_cv, reduction_results_f
     df_gs_folds_dist = get_folds_model(df_gs_folds, df_gs_cv_dist, params).sort_values(by=['k', 'fold'])
     df_gs_folds_w = get_folds_model(df_gs_folds, df_gs_cv_w, params).sort_values(by=['k', 'fold'])
 
+    # Folds associated to the best models (combined and isolated)
+    df_gs_folds_best = get_folds_model(df_gs_folds, df_gs_cv_best, params).sort_values(by=['k', 'fold'])
+    df_gs_folds_k_best = get_folds_model(df_gs_folds, df_best_k, params).sort_values(by=['k', 'fold'])
+    df_gs_folds_pol_best = get_folds_model(df_gs_folds, df_best_pol, params).sort_values(by=['k', 'fold'])
+    df_gs_folds_dist_best = get_folds_model(df_gs_folds, df_best_dist, params).sort_values(by=['k', 'fold'])
+    df_gs_folds_w_best = get_folds_model(df_gs_folds, df_best_w, params).sort_values(by=['k', 'fold'])
+
     # Hypothesis test
 
-    # Best kNN algorithm
+    # Hypothesis test per each parameter in isolation
     accuracy_folds_k = get_numpy_folds(get_model(df_gs_folds_k), 'model', 'accuracy')
     accuracy_folds_pol = get_numpy_folds(get_model(df_gs_folds_pol), 'model', 'accuracy')
     accuracy_folds_dist = get_numpy_folds(get_model(df_gs_folds_dist), 'model', 'accuracy')
@@ -257,6 +269,15 @@ def analyze(gridsearch_results_folds, gridsearch_results_cv, reduction_results_f
 
     print('> BEST WEIGHTING\n')
     hypothesis_test(accuracy_folds_w)
+
+    # Best kNN algorithm
+    best_models = [get_model(df_gs_folds_best), get_model(df_gs_folds_k_best), get_model(df_gs_folds_pol_best),
+                   get_model(df_gs_folds_dist_best), get_model(df_gs_folds_w_best)]
+    df_best_models = pd.concat(best_models, axis=0)
+    accuracy_folds_best = get_numpy_folds(df_best_models, 'model', 'accuracy')
+
+    print('\n> BEST KNN\n')
+    hypothesis_test(accuracy_folds_best)
 
     # Comparison Best vs. with reduction algorithms
     df_reduction_folds = df_reduction_folds.sort_values(by=['algorithm', 'dataset'])
