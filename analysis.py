@@ -62,8 +62,8 @@ def hypothesis_test(models):
     else:
         s, p = friedmanchisquare(model_list[0], model_list[1], model_list[2], model_list[3])
 
-    print('Friedman Test')
-    print('p-value = ', p)
+    print('Friedman Test:')
+    print('p-value = ', round(p, 6))
     if p < 0.05:
         print('Reject Null Hypothesis: not all the performances are under same distribution')
 
@@ -73,16 +73,16 @@ def hypothesis_test(models):
         for comb in models_comb:
             print(comb)
             s_wx, p_wx = wilcoxon(models[comb[0]], models[comb[1]])
-            print('p_value = ', p_wx)
+            print('p_value = ', round(p_wx, 6))
             if p_wx < 0.05:
-                print('Reject Null Hypothesis: statistical significant difference among model performance')
+                print('Reject Null Hypothesis: statistical significant difference among model performance\n')
             else:
-                print('Confirmed Null Hypothesis: no statistical significant difference among different classifiers ')
+                print('Confirmed Null Hypothesis: no statistical significant difference among different classifiers\n')
 
     else:
         print('Confirmed Null Hypothesis: no statistical significant difference among different classifiers ')
 
-    print('-----------------------------')
+    print('_____________________________')
     print('\n')
 
 
@@ -94,44 +94,3 @@ def generate_combinations(param):
         combs.append(comb)
 
     return combs
-
-# Read Results
-df_gs_cv = pd.read_csv('results_credita_cv.csv')
-df_gs_folds = pd.read_csv('results_credita_folds.csv')
-df_reduction_cv = pd.read_csv('results_credita_reduction.csv')
-df_reduction_folds = pd.read_csv('results_credita_reduction_folds.csv')
-
-
-# Best Model per each parameter [k, policy, distance, weighting]
-df_gs_cv_k = param_best_model(df_gs_cv, 'k', 'accuracy', 'efficiency')
-df_gs_cv_pol = param_best_model(df_gs_cv, 'policy', 'accuracy', 'efficiency')
-df_gs_cv_dist = param_best_model(df_gs_cv, 'distance', 'accuracy', 'efficiency')
-df_gs_cv_w = param_best_model(df_gs_cv, 'weighting', 'accuracy', 'efficiency')
-
-# Best overall model
-df_gs_cv_best = global_best_model(df_gs_cv, 'accuracy')
-
-# Folds associated to best models per each parameter [k, policy, distance, weighting]
-params = ['k', 'policy', 'distance', 'weighting']
-df_gs_folds_k = get_folds_model(df_gs_folds, df_gs_cv_k, params).sort_values(by=['k', 'fold'])
-df_gs_folds_pol = get_folds_model(df_gs_folds, df_gs_cv_pol, params).sort_values(by=['k', 'fold'])
-df_gs_folds_dist = get_folds_model(df_gs_folds, df_gs_cv_dist, params).sort_values(by=['k', 'fold'])
-df_gs_folds_w = get_folds_model(df_gs_folds, df_gs_cv_w, params).sort_values(by=['k', 'fold'])
-
-# Hypothesis test
-
-# Best kNN algorithm
-accuracy_folds_k = get_numpy_folds(get_model(df_gs_folds_k), 'model', 'accuracy')
-accuracy_folds_pol = get_numpy_folds(get_model(df_gs_folds_pol), 'model', 'accuracy')
-accuracy_folds_dist = get_numpy_folds(get_model(df_gs_folds_dist), 'model', 'accuracy')
-accuracy_folds_w = get_numpy_folds(get_model(df_gs_folds_w), 'model', 'accuracy')
-
-hypothesis_test(accuracy_folds_k)
-hypothesis_test(accuracy_folds_pol)
-hypothesis_test(accuracy_folds_dist)
-hypothesis_test(accuracy_folds_w)
-
-# Comparison Best vs. with reduction algorithms
-df_reduction_folds = df_reduction_folds.sort_values(by=['algorithm', 'dataset'])
-accuracy_folds_reduced = get_numpy_folds(df_reduction_folds, 'algorithm', 'accuracy')
-hypothesis_test(accuracy_folds_reduced)

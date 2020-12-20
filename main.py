@@ -11,6 +11,8 @@ from datasetsCBR import load_credita, load_kropt, load_satimage, K_FOLDS
 from classification import kNNAlgorithm
 from reduction import reductionKNNAlgorithm
 from model_selection import GridSearchCV, cross_validate
+from analysis import (param_best_model, global_best_model, get_model, 
+                      get_numpy_folds, get_folds_model, hypothesis_test)
 
 
 @click.group()
@@ -155,7 +157,7 @@ def test_reduction(dataset, k, similarity, policy, weighting, out, cv):
 
     # perform reduction
     history = pd.DataFrame()
-    reductions = ['no', 'enn', 'snn', 'drop2', 'drop3']
+    reductions = ['no', 'enn', 'snn', 'drop2']
     pbar = tqdm(total=len(reductions) * len(cv_splits))
 
     for reduction in reductions:
@@ -202,6 +204,65 @@ def test_reduction(dataset, k, similarity, policy, weighting, out, cv):
         if not out.endswith('.csv'):
             out += '.csv'
         history.to_csv(out, index=False)
+
+
+# -----------------------------------------------------------------------------------------
+# Test all reduction algorithms for a specific kNN model
+@cli.command('analyze')
+@click.option('-g', '--gridsearch-results-folds', type=str, help='Path to file with gridsearch results'
+              ' by folds')
+@click.option('-G', '--gridsearch-results-cv', type=str, help='Path to file with gridsearch results '
+              'with cross-validation')
+@click.option('-r', '--reduction-results-folds', type=str, help='Path to file with reduction results '
+              'by folds')
+def analyze(gridsearch_results_folds, gridsearch_results_cv, reduction_results_folds):
+    # Read Results
+    df_gs_cv = pd.read_csv(gridsearch_results_cv)
+    df_gs_folds = pd.read_csv(gridsearch_results_folds)
+    # df_reduction_cv = pd.read_csv('results_credita_reduction.csv')
+    df_reduction_folds = pd.read_csv(reduction_results_folds)
+
+    # Best Model per each parameter [k, policy, distance, weighting]
+    df_gs_cv_k = param_best_model(df_gs_cv, 'k', 'accuracy', 'efficiency')
+    df_gs_cv_pol = param_best_model(df_gs_cv, 'policy', 'accuracy', 'efficiency')
+    df_gs_cv_dist = param_best_model(df_gs_cv, 'distance', 'accuracy', 'efficiency')
+    df_gs_cv_w = param_best_model(df_gs_cv, 'weighting', 'accuracy', 'efficiency')
+
+    # Best overall model
+    df_gs_cv_best = global_best_model(df_gs_cv, 'accuracy')
+
+    # Folds associated to best models per each parameter [k, policy, distance, weighting]
+    params = ['k', 'policy', 'distance', 'weighting']
+    df_gs_folds_k = get_folds_model(df_gs_folds, df_gs_cv_k, params).sort_values(by=['k', 'fold'])
+    df_gs_folds_pol = get_folds_model(df_gs_folds, df_gs_cv_pol, params).sort_values(by=['k', 'fold'])
+    df_gs_folds_dist = get_folds_model(df_gs_folds, df_gs_cv_dist, params).sort_values(by=['k', 'fold'])
+    df_gs_folds_w = get_folds_model(df_gs_folds, df_gs_cv_w, params).sort_values(by=['k', 'fold'])
+
+    # Hypothesis test
+
+    # Best kNN algorithm
+    accuracy_folds_k = get_numpy_folds(get_model(df_gs_folds_k), 'model', 'accuracy')
+    accuracy_folds_pol = get_numpy_folds(get_model(df_gs_folds_pol), 'model', 'accuracy')
+    accuracy_folds_dist = get_numpy_folds(get_model(df_gs_folds_dist), 'model', 'accuracy')
+    accuracy_folds_w = get_numpy_folds(get_model(df_gs_folds_w), 'model', 'accuracy')
+
+    print('\n> BEST K\n')
+    hypothesis_test(accuracy_folds_k)
+
+    print('> BEST POLICY\n')
+    hypothesis_test(accuracy_folds_pol)
+
+    print('> BEST DISTANCE\n')
+    hypothesis_test(accuracy_folds_dist)
+
+    print('> BEST WEIGHTING\n')
+    hypothesis_test(accuracy_folds_w)
+
+    # Comparison Best vs. with reduction algorithms
+    df_reduction_folds = df_reduction_folds.sort_values(by=['algorithm', 'dataset'])
+    accuracy_folds_reduced = get_numpy_folds(df_reduction_folds, 'algorithm', 'accuracy')
+    print('> BEST REDUCTION\n')
+    hypothesis_test(accuracy_folds_reduced)
 
 
 if __name__ == "__main__":

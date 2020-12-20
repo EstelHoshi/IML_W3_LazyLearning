@@ -59,6 +59,7 @@ def _vote_majority(q, X, y, *args):
 
 
 def _vote_inverse(q, X, y, dists):
+    dists[dists == 0] = 1e-9    # avoid divisions by 0
     inv_dist = np.divide(1., dists)
     return _vote_distance(q, X, y, inv_dist)
 

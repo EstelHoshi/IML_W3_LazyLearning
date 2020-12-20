@@ -170,7 +170,7 @@ def mutual_info(X, y):
     discrete_features = np.empty(len(X.columns), dtype=np.bool)
 
     # if the integer value is the same as the current value, then
-    # it means is is a discrete feature
+    # it means it is a discrete feature
     for i, col in enumerate(X):
         discrete_features[i] = np.all(X[col].astype(np.int) == X[col])
 

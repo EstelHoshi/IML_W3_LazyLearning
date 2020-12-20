@@ -171,12 +171,12 @@ def SNN(X_train, y_train): #SNN
         A = np.delete(A, col_del, 1)                        # delete columns
 
         id_A = np.delete(id_A,row_del)
-        print(np.shape(A))
+        # print(np.shape(A))
 
         ##step2##
         rows = np.shape(A)[0]
         for j in range(np.shape(A)[0]):
-            print(j)
+            # print(j)
             if A[j,0]!=2:   #if j not in row_del:
                 for k in range(j+1,rows):
                     if A[k,0] !=2: # if k not in j_no:
