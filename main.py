@@ -306,6 +306,7 @@ def compare(parameter, metrics, results_file, title, x_label, y_label):
     metrics = list(metrics)
 
     values = df_res.groupby(parameter).mean().sort_values(metrics[0])
+    print(values)
 
     ax = plt.axes()
 
