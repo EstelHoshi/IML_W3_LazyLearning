@@ -1,13 +1,10 @@
+import time
+import itertools
 import numpy as np
 import pandas as pd
-import itertools
-import time
 from sklearn.metrics import accuracy_score
 from classification import kNNAlgorithm
-from multiprocessing import cpu_count
 from multiprocessing.dummy import Pool as ThreadPool
-from multiprocessing import Pool
-from joblib import Parallel, delayed
 
 
 def GridSearchCV(cv_splits, param_grid, n_proc=1):

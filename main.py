@@ -3,7 +3,6 @@ from click import Choice
 import numpy as np
 import pandas as pd
 from sklearn import metrics
-from sklearn.neighbors import KNeighborsClassifier
 from matplotlib import pyplot as plt
 import time
 from tqdm import tqdm
@@ -23,7 +22,7 @@ def cli():
 
 # -----------------------------------------------------------------------------------------
 # Run kNN with the specified parameters
-@cli.command('kNN', help='Run kNN with the specified parameters')
+@cli.command('knn', help='Run kNN with the specified parameters')
 @click.option('-d', '--dataset', type=Choice(['satimage', 'credita']), default='satimage',
               help='Dataset name')
 @click.option('-k', type=int, default=5, help='Value k for the nearest neighours to consider')
