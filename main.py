@@ -7,7 +7,7 @@ from sklearn.neighbors import KNeighborsClassifier
 import time
 from tqdm import tqdm
 
-from datasetsCBR import load_credita, load_kropt, load_satimage, K_FOLDS
+from datasetsCBR import load_credita, load_satimage, K_FOLDS
 from classification import kNNAlgorithm
 from reduction import reductionKNNAlgorithm
 from model_selection import GridSearchCV, cross_validate
@@ -21,18 +21,18 @@ def cli():
 
 
 # -----------------------------------------------------------------------------------------
-# Run kNN with specific parameters
-@cli.command('kNN')
-@click.option('-d', '--dataset', type=Choice(['kropt', 'satimage', 'credita']), default='satimage',
+# Run kNN with the specified parameters
+@cli.command('kNN', help='Run kNN with the specified parameters')
+@click.option('-d', '--dataset', type=Choice(['satimage', 'credita']), default='satimage',
               help='Dataset name')
-@click.option('-k', type=int, default=3, help='Value k for the nearest neighours to consider')
+@click.option('-k', type=int, default=5, help='Value k for the nearest neighours to consider')
 @click.option('-s', '--similarity', type=Choice(['1-norm', '2-norm', 'chebyshev']), default='2-norm', 
               help='Distance / similarity function')
 @click.option('-p', '--policy', type=Choice(['majority', 'inverse', 'sheppard']), default='majority',
               help='Policy for deciding the solution of a query')
 @click.option('-w', '--weighting', type=Choice(['uniform', 'mutual_info', 'relief']), default='uniform',
               help='Method to weight features')
-@click.option('-r', '--reduction', type=Choice(['no', 'drop2', 'drop3', 'snn', 'YYY']), default='no',
+@click.option('-r', '--reduction', type=Choice(['no', 'drop2', 'drop3', 'snn', 'enn']), default='no',
               help='Method to reduce the number of instances')
 def kNN(dataset, k, similarity, policy, weighting, reduction):
     if dataset == 'credita':
@@ -70,8 +70,9 @@ def kNN(dataset, k, similarity, policy, weighting, reduction):
 
 
 # -----------------------------------------------------------------------------------------
-# Perform a grid search over all possible combination of parameters for kNN
-@cli.command('gridsearch')
+# Perform a grid search over all possible combinations of parameters for kNN
+@cli.command('gridsearch', help='Perform a grid search over all possible combinations of '
+             'parameters for kNN')
 @click.option('-d', '--dataset', type=Choice(['satimage', 'credita']), default='credita',
               help='Dataset name')
 @click.option('-o', '--out', type=str, default=None, help='Output file name')
@@ -135,7 +136,7 @@ def gridsearch(dataset, out, cv):
 
 # -----------------------------------------------------------------------------------------
 # Test all reduction algorithms for a specific kNN model
-@cli.command('test-reduction')
+@cli.command('test-reduction', help='Test all reduction algorithms for a specific kNN model')
 @click.option('-d', '--dataset', type=Choice(['satimage', 'credita']), default='credita',
               help='Dataset name')
 @click.option('-k', type=int, default=3, help='Value k for the nearest neighours to consider')
@@ -207,8 +208,9 @@ def test_reduction(dataset, k, similarity, policy, weighting, out, cv):
 
 
 # -----------------------------------------------------------------------------------------
-# Test all reduction algorithms for a specific kNN model
-@cli.command('analyze')
+# Perform a statistical analysis comparing the best model for each isolated parameter
+@cli.command('analyze', help='Perform a statistical analysis comparing the best model for each '
+             'isolated parameter using the results obtained from the other commands')
 @click.option('-g', '--gridsearch-results-folds', type=str, help='Path to file with gridsearch results'
               ' by folds')
 @click.option('-G', '--gridsearch-results-cv', type=str, help='Path to file with gridsearch results '

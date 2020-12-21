@@ -11,9 +11,6 @@ from classification import _sanitize
 
 K_FOLDS = 10
 
-def load_kropt(i):
-    return i, i
-
 
 def load_satimage(weighting=None):
     cv_splits = []
