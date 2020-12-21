@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn import metrics
 from sklearn.neighbors import KNeighborsClassifier
+from matplotlib import pyplot as plt
 import time
 from tqdm import tqdm
 
@@ -286,6 +287,54 @@ def analyze(gridsearch_results_folds, gridsearch_results_cv, reduction_results_f
     accuracy_folds_reduced = get_numpy_folds(df_reduction_folds, 'algorithm', 'accuracy')
     print('> BEST REDUCTION\n')
     hypothesis_test(accuracy_folds_reduced)
+
+
+
+# -----------------------------------------------------------------------------------------
+# Plot a graph comparing a specified parameter across different models measuring some metrics
+@cli.command('compare', help='Plot a graph comparing a specified parameter across different '
+             'models measuring some metrics')
+@click.option('-p', '--parameter', type=Choice(['k', 'distance', 'policy', 'weighting', 'algorithm']),
+              help='Parameter to compare')
+@click.option('-m', '--metrics', type=str, multiple=True, help='Metrics to evaluate')
+@click.option('-f', '--results-file', type=str, help='Path to file with results to compare')
+@click.option('-t', '--title', type=str, default=None, help='Title of the plot')
+@click.option('-x', '--x-label', type=str, default=None, help='Name of x axis')
+@click.option('-y', '--y-label', type=str, default=None, help='Name of y axis')
+def compare(parameter, metrics, results_file, title, x_label, y_label):
+    df_res = pd.read_csv(results_file)
+    metrics = list(metrics)
+
+    values = df_res.groupby(parameter).mean().sort_values(metrics[0])
+
+    ax = plt.axes()
+
+    x = values.index
+    for metric in metrics:
+        y = values[metric]
+        plt.bar(x, y, label=metric)
+
+    if x_label is None:
+        plt.xlabel(parameter)
+    else:
+        plt.xlabel(x_label)
+
+    if y_label is None:
+        plt.ylabel(metrics[0])
+    else:
+        plt.ylabel(y_label)
+
+    if title is None:
+        plt.title(f'Evaluating parameter \'{parameter}\'')
+    else:
+        plt.title(title)
+        
+    plt.xticks(np.unique(x))
+    ax.yaxis.grid(color='0.85')
+    ax.set_axisbelow(True)
+    plt.legend()
+    plt.show()
+    
 
 
 if __name__ == "__main__":
